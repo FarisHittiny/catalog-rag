@@ -21,7 +21,7 @@ REGISTRY = {"bm25": BM25Retriever}  # M1: add "dense", "hybrid", "hybrid+rerank"
 
 
 def load_jsonl(path: Path, model):
-    return [model.model_validate_json(l) for l in path.read_text().splitlines() if l.strip()]
+    return [model.model_validate_json(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
 def validate_gold(gold: list[GoldQuestion], corpus_ids: set[str]) -> None:
@@ -72,8 +72,8 @@ def main(
     print(md)
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    (reports / f"{stamp}.json").write_text(json.dumps(results, indent=2))
-    (reports / "latest.md").write_text(md + "\n")
+    (reports / f"{stamp}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    (reports / "latest.md").write_text(md + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

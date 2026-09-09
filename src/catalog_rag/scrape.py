@@ -39,7 +39,7 @@ XLIST_RE = re.compile(r"Cross Listing:\s*(.*?)" + _STOP, re.S)
 
 
 def _clean(s: str) -> str:
-    return " ".join(s.split())
+    return re.sub(r"\s+([.;,:)])", r"\1", " ".join(s.split()))
 
 
 def fetch(dept: str, save_html: bool) -> str:
@@ -48,7 +48,7 @@ def fetch(dept: str, save_html: bool) -> str:
     r.raise_for_status()
     if save_html:
         RAW.mkdir(parents=True, exist_ok=True)
-        (RAW / f"{dept.lower()}.html").write_text(r.text)
+        (RAW / f"{dept.lower()}.html").write_text(r.text, encoding="utf-8")
     return r.text
 
 
@@ -121,10 +121,10 @@ def main(
 ):
     out.parent.mkdir(parents=True, exist_ok=True)
     total = 0
-    with out.open("w") as f:
+    with out.open("w", encoding="utf-8") as f:
         for dept in depts:
             url = BASE.format(dept=dept.lower())
-            html = from_html.read_text() if from_html else fetch(dept, save_html)
+            html = from_html.read_text(encoding="utf-8") if from_html else fetch(dept, save_html)
             courses = parse(html, dept, catalog_year, url)
             n_prereq = sum(1 for c in courses if c.prereqs)
             for c in courses:

@@ -15,7 +15,7 @@ from .prereq_graph import load_courses
 
 def main(inp: Path = Path("data/processed/courses.jsonl"), out: Path = Path("data/processed/chunks.jsonl")):
     courses = load_courses(inp)
-    with out.open("w") as f:
+    with out.open("w", encoding="utf-8") as f:
         for c in courses:
             ch = Chunk(chunk_id=f"{c.course_id}#0", course_id=c.course_id, dept=c.dept,
                        catalog_year=c.catalog_year, text=c.text())

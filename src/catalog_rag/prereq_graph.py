@@ -58,4 +58,4 @@ def required_for(g: nx.DiGraph, course_id: str) -> list[list[str]]:
 
 
 def load_courses(path: Path = Path("data/processed/courses.jsonl")) -> list[Course]:
-    return [Course.model_validate_json(line) for line in path.read_text().splitlines() if line]
+    return [Course.model_validate_json(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
