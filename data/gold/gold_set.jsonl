@@ -1,0 +1,3 @@
+{"id": "g001", "question": "what do I need before ECEN 350?", "dept": "ECEN", "type": "factual", "gold_course_ids": ["ECEN 350"], "gold_answer": "FILL FROM CATALOG PAGE", "answerable": true, "notes": "example. verify against catalog and replace."}
+{"id": "g002", "question": "what can I take after ECEN 350?", "dept": "ECEN", "type": "prereq", "gold_course_ids": ["FILL: every course listing ECEN 350 as a prereq"], "gold_answer": "FILL", "answerable": true, "notes": "example. needs the graph."}
+{"id": "g003", "question": "who teaches ECEN 350 this fall?", "dept": "ECEN", "type": "not_in_catalog", "gold_course_ids": [], "gold_answer": "Not in the catalog.", "answerable": false, "notes": "example. instructors are not catalog data."}

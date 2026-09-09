@@ -1,0 +1,23 @@
+name: eval
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --extra dev
+      - run: uv run pytest -q
+      # Scraping in CI is optional; commit data/processed/chunks.jsonl once you're happy with it,
+      # or cache it. Until then this step is a placeholder.
+      - name: retrieval eval
+        if: hashFiles('data/processed/chunks.jsonl') != ''
+        run: uv run python -m catalog_rag.eval.run --retrievers bm25
+      - name: post table
+        if: github.event_name == 'pull_request' && hashFiles('reports/latest.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: reports/latest.md

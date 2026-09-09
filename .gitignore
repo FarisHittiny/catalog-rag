@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/raw/*.html
+data/processed/*.jsonl
+data/processed/*.npy
+reports/*.json
+.pytest_cache/
+.ruff_cache/
+.remember/
