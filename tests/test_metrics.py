@@ -36,3 +36,15 @@ def test_markdown_renders():
     rows = [{"type": "factual", "ranked": ["a"], "gold": ["a"]}]
     md = to_markdown({"bm25": aggregate(rows, ks=(1,))}, corpus_size=412)
     assert "| bm25 | 412 | overall | 1 | 1.000 | 1.000 |" in md
+
+
+def test_aggregate_splits_on_has_code_when_present():
+    rows = [
+        {"type": "factual", "has_code": True, "ranked": ["a"], "gold": ["a"]},
+        {"type": "factual", "has_code": False, "ranked": ["x"], "gold": ["a"]},
+    ]
+    agg = aggregate(rows, ks=(1,))
+    assert agg["has_code"]["n"] == 1 and agg["has_code"]["recall@1"] == 1.0
+    assert agg["no_code"]["n"] == 1 and agg["no_code"]["recall@1"] == 0.0
+    plain = aggregate([{"type": "factual", "ranked": ["a"], "gold": ["a"]}], ks=(1,))
+    assert "has_code" not in plain and "no_code" not in plain

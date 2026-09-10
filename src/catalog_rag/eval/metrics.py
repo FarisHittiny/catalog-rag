@@ -44,6 +44,8 @@ def aggregate(
             continue
         buckets["overall"].append(r)
         buckets[r["type"]].append(r)
+        if "has_code" in r:
+            buckets["has_code" if r["has_code"] else "no_code"].append(r)
 
     out: dict[str, dict[str, float]] = {}
     for name, rs in buckets.items():

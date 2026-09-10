@@ -15,6 +15,7 @@ from rich import print
 
 from ..models import Chunk, GoldQuestion
 from ..retrievers import BM25CodesIdRetriever, BM25CodesRetriever, BM25Retriever
+from ..retrievers.tokenize import CODE_RE
 from .metrics import aggregate, to_markdown
 
 REGISTRY = {
@@ -41,6 +42,8 @@ def validate_gold(gold: list[GoldQuestion], corpus_ids: set[str]) -> None:
             problems.append(f"{q.id}: answerable but no gold_course_ids")
         if not q.verified:
             problems.append(f"{q.id}: not verified")
+        if q.has_code != bool(CODE_RE.search(q.question)):
+            problems.append(f"{q.id}: has_code={q.has_code} disagrees with question text")
         if not q.answerable and q.gold_course_ids:
             problems.append(f"{q.id}: not answerable but has gold_course_ids")
     if problems:
@@ -70,7 +73,8 @@ def main(
         rows = []
         for q in gold:
             ranked = [x.course_id for x in r.retrieve(q.question, k=k)]
-            rows.append({"id": q.id, "type": q.type, "ranked": ranked, "gold": q.gold_course_ids})
+            rows.append({"id": q.id, "type": q.type, "has_code": q.has_code,
+                         "ranked": ranked, "gold": q.gold_course_ids})
         results[r.name] = aggregate(rows)
         misses = [row["id"] for row in rows if row["gold"] and not set(row["gold"]) & set(row["ranked"][:5])]
         if misses:
