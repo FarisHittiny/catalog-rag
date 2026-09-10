@@ -25,7 +25,7 @@ def load_jsonl(path: Path, model):
 
 
 def validate_gold(gold: list[GoldQuestion], corpus_ids: set[str]) -> None:
-    """Fail loudly on placeholders; warn on gold ids the corpus doesn't contain.
+    """Fail loudly on placeholders and unverified rows; warn on gold ids the corpus doesn't contain.
 
     A placeholder silently scores as a miss and drags recall down, which is worse than a crash.
     """
@@ -35,6 +35,8 @@ def validate_gold(gold: list[GoldQuestion], corpus_ids: set[str]) -> None:
             problems.append(f"{q.id}: placeholder still present")
         if q.answerable and not q.gold_course_ids:
             problems.append(f"{q.id}: answerable but no gold_course_ids")
+        if not q.verified:
+            problems.append(f"{q.id}: not verified")
         if not q.answerable and q.gold_course_ids:
             problems.append(f"{q.id}: not answerable but has gold_course_ids")
     if problems:

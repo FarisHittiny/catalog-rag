@@ -49,6 +49,7 @@ class GoldQuestion(BaseModel):
     gold_answer: str = ""
     answerable: bool = True
     notes: str = ""
+    verified: bool = True  # False = drafted, not yet checked against the catalog page
 
 
 class RetrievalResult(BaseModel):
