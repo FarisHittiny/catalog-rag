@@ -22,7 +22,8 @@ class Course(BaseModel):
     def text(self) -> str:
         """Canonical text used for indexing."""
         parts = [f"{self.course_id} {self.title}", self.description]
-        if self.prereq_raw:
+        if self.prereq_raw and self.prereq_raw not in self.description:
+            # scraped descriptions usually already end with the prereq sentence
             parts.append(f"Prerequisite: {self.prereq_raw}")
         if self.crosslisted:
             parts.append("Cross-listed with " + ", ".join(self.crosslisted))

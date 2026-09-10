@@ -52,6 +52,7 @@ def main(
     gold_path: Path = Path("data/gold/gold_set.jsonl"),
     k: int = 10,
     reports: Path = Path("reports"),
+    note: str = typer.Option("", help="one-line provenance note written above the table"),
 ):
     chunks = load_jsonl(chunks_path, Chunk)
     gold = load_jsonl(gold_path, GoldQuestion)
@@ -71,6 +72,8 @@ def main(
         if misses:
             print(f"[dim]{r.name} recall@5 misses:[/] {', '.join(misses)}")
     md = to_markdown(results, corpus_size)
+    if note:
+        md = f"> {note}\n\n" + md
     print(md)
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
