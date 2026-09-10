@@ -14,10 +14,14 @@ import typer
 from rich import print
 
 from ..models import Chunk, GoldQuestion
-from ..retrievers import BM25CodesRetriever, BM25Retriever
+from ..retrievers import BM25CodesIdRetriever, BM25CodesRetriever, BM25Retriever
 from .metrics import aggregate, to_markdown
 
-REGISTRY = {"bm25": BM25Retriever, "bm25_codes": BM25CodesRetriever}  # M1: add "dense", "hybrid"
+REGISTRY = {
+    "bm25": BM25Retriever,
+    "bm25_codes": BM25CodesRetriever,
+    "bm25_codes_id": BM25CodesIdRetriever,
+}  # M1: add "dense", "hybrid"
 
 
 def load_jsonl(path: Path, model):

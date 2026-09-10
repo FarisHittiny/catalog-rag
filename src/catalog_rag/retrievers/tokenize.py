@@ -12,3 +12,13 @@ def tokenize(s: str, fuse_codes: bool = False) -> list[str]:
     if fuse_codes:
         s = CODE_RE.sub(lambda m: f"{m[1]} {m[2]} {m[1]}{m[2]}", s)
     return TOKEN_RE.findall(s.lower())
+
+
+def extract_codes(s: str) -> list[str]:
+    """Canonical course ids named in s ("ECEN 350"), in order of first appearance, deduplicated."""
+    out: list[str] = []
+    for m in CODE_RE.finditer(s):
+        cid = f"{m[1].upper()} {m[2].upper()}"
+        if cid not in out:
+            out.append(cid)
+    return out

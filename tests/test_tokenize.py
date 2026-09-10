@@ -25,3 +25,11 @@ def test_plain_text_unchanged_and_default_matches_bm25():
 def test_suffix_letter_and_no_midword_fusion():
     assert "math151h" in tokenize("MATH 151H", fuse_codes=True)
     assert tokenize("abcd1234", fuse_codes=True) == ["abcd1234"]
+
+
+def test_extract_codes_canonical_ordered_deduped():
+    from catalog_rag.retrievers.tokenize import extract_codes
+
+    assert extract_codes("ecen350 then CSCE 221 then ECEN 350") == ["ECEN 350", "CSCE 221"]
+    assert extract_codes("math 151h") == ["MATH 151H"]
+    assert extract_codes("no codes here") == []
