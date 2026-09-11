@@ -5,6 +5,7 @@ __pycache__/
 data/raw/*.html
 data/processed/*.jsonl
 data/processed/*.npy
+data/processed/*.meta.json
 reports/*.json
 .pytest_cache/
 .ruff_cache/

@@ -14,15 +14,23 @@ import typer
 from rich import print
 
 from ..models import Chunk, GoldQuestion
-from ..retrievers import BM25CodesIdRetriever, BM25CodesRetriever, BM25Retriever
+from ..retrievers import (
+    BM25CodesIdRetriever,
+    BM25CodesRetriever,
+    BM25Retriever,
+    DenseRetriever,
+    HybridRetriever,
+)
 from ..retrievers.tokenize import CODE_RE
 from .metrics import aggregate, to_markdown
 
-REGISTRY = {
+REGISTRY = {  # name -> zero-arg factory
     "bm25": BM25Retriever,
     "bm25_codes": BM25CodesRetriever,
     "bm25_codes_id": BM25CodesIdRetriever,
-}  # M1: add "dense", "hybrid"
+    "dense": DenseRetriever,
+    "hybrid": lambda: HybridRetriever([BM25CodesRetriever(), DenseRetriever()]),
+}  # M2: "hybrid+rerank"
 
 
 def load_jsonl(path: Path, model):

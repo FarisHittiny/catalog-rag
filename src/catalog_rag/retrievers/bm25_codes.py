@@ -8,6 +8,7 @@ from __future__ import annotations
 from rank_bm25 import BM25Okapi
 
 from ..models import Chunk, RetrievalResult
+from .base import top_by_course
 from .tokenize import tokenize
 
 
@@ -29,15 +30,4 @@ class BM25CodesRetriever:
     def retrieve(self, query: str, k: int = 10) -> list[RetrievalResult]:
         assert self._bm25 is not None, "call index() first"
         scores = self._bm25.get_scores(self._tok(query))
-        order = sorted(range(len(scores)), key=lambda i: -scores[i])
-        seen: set[str] = set()
-        out: list[RetrievalResult] = []
-        for i in order:
-            c = self._chunks[i]
-            if c.course_id in seen:
-                continue
-            seen.add(c.course_id)
-            out.append(RetrievalResult(course_id=c.course_id, score=float(scores[i]), chunk_id=c.chunk_id))
-            if len(out) == k:
-                break
-        return out
+        return top_by_course(self._chunks, scores, k)
