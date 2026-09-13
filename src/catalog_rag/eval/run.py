@@ -19,9 +19,12 @@ from ..retrievers import (
     BM25CodesRetriever,
     BM25Retriever,
     DenseRetriever,
+    GraphRetriever,
     HybridRetriever,
+    RoutedRetriever,
 )
 from ..retrievers.tokenize import CODE_RE
+from ..router import route
 from .metrics import aggregate, to_markdown
 
 REGISTRY = {  # name -> zero-arg factory
@@ -30,7 +33,15 @@ REGISTRY = {  # name -> zero-arg factory
     "bm25_codes_id": BM25CodesIdRetriever,
     "dense": DenseRetriever,
     "hybrid": lambda: HybridRetriever([BM25CodesRetriever(), DenseRetriever()]),
+    "graph": GraphRetriever,
+    "routed": lambda: RoutedRetriever(GraphRetriever(), BM25CodesIdRetriever()),
 }  # M2: "hybrid+rerank"
+
+
+def router_accuracy(gold: list[GoldQuestion]) -> tuple[float, list[str]]:
+    """Fraction of gold questions where route(question) agrees with (type == "prereq")."""
+    bad = [q.id for q in gold if route(q.question) != ("prereq" if q.type == "prereq" else "other")]
+    return (1 - len(bad) / len(gold)) if gold else float("nan"), bad
 
 
 def load_jsonl(path: Path, model):
@@ -74,6 +85,9 @@ def main(
     corpus_ids = {c.course_id for c in chunks}
     corpus_size = len(corpus_ids)
     validate_gold(gold, corpus_ids)
+    acc, misrouted = router_accuracy(gold)
+    router_line = (f"router accuracy: {acc:.3f} ({len(gold) - len(misrouted)}/{len(gold)})"
+                   + (f"; misrouted: {', '.join(misrouted)}" if misrouted else ""))
     results = {}
     for name in retrievers:
         r = REGISTRY[name]()
@@ -88,12 +102,14 @@ def main(
         if misses:
             print(f"[dim]{r.name} recall@5 misses:[/] {', '.join(misses)}")
     md = to_markdown(results, corpus_size)
+    md = f"> {router_line}\n\n" + md
     if note:
         md = f"> {note}\n\n" + md
     print(md)
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    (reports / f"{stamp}.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted}, "results": results}
+    (reports / f"{stamp}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     (reports / "latest.md").write_text(md + "\n", encoding="utf-8")
 
 

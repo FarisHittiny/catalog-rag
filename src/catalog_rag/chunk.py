@@ -18,7 +18,7 @@ def main(inp: Path = Path("data/processed/courses.jsonl"), out: Path = Path("dat
     with out.open("w", encoding="utf-8") as f:
         for c in courses:
             ch = Chunk(chunk_id=f"{c.course_id}#0", course_id=c.course_id, dept=c.dept,
-                       catalog_year=c.catalog_year, text=c.text())
+                       catalog_year=c.catalog_year, text=c.text(), prereqs=c.prereqs)
             f.write(ch.model_dump_json() + "\n")
     print(f"wrote {len(courses)} chunks to {out}")
 

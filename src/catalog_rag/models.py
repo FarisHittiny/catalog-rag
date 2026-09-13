@@ -36,6 +36,7 @@ class Chunk(BaseModel):
     dept: str
     catalog_year: str
     text: str
+    prereqs: list[list[str]] = Field(default_factory=list)  # AND of OR-groups, copied from Course
 
 
 QuestionType = Literal["factual", "prereq", "multi_hop", "not_in_catalog"]
