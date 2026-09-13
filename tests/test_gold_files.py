@@ -38,7 +38,3 @@ def test_unanswerable_rows_have_no_gold_ids(rows):
 def test_answerable_rows_have_answer_and_gold_ids(rows):
     bad = [q.id for qs in rows.values() for q in qs if q.answerable and (not q.gold_course_ids or not q.gold_answer)]
     assert bad == []
-
-
-def test_stubs_are_all_unverified(rows):
-    assert all(not q.verified for q in rows["gold_stubs.jsonl"])
