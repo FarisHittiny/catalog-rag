@@ -11,13 +11,14 @@ FILES = [GOLD_DIR / "gold_set.jsonl", GOLD_DIR / "gold_stubs.jsonl"]
 
 
 def _load(path: Path) -> list[GoldQuestion]:
-    assert path.exists(), f"missing {path}"
     return [GoldQuestion.model_validate_json(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
 @pytest.fixture(scope="module")
 def rows() -> dict[str, list[GoldQuestion]]:
-    return {p.name: _load(p) for p in FILES}
+    """gold_set.jsonl is required; gold_stubs.jsonl exists only while drafts are pending."""
+    assert FILES[0].exists(), f"missing {FILES[0]}"
+    return {p.name: _load(p) for p in FILES if p.exists()}
 
 
 def test_ids_unique_across_files(rows):
