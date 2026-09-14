@@ -1,19 +1,25 @@
 """One command: index, run every retriever over the gold set, write the table.
 
-    python -m catalog_rag.eval.run --retrievers bm25
+    python -m catalog_rag.eval.run --retrievers bm25                       # retrieval only, no API key
+    python -m catalog_rag.eval.run --retrievers routed --generate           # + generation and LLM judge
 
-Writes reports/<timestamp>.json and prints Markdown. M2 adds generation + judge.
+Writes reports/<timestamp>.json and prints Markdown. Retrieval-only is the default so CI
+never needs a key. `--generate` needs LLM_BASE_URL, an API key, LLM_MODEL and JUDGE_MODEL
+in .env (see llm.py); every call is disk-cached, so re-runs cost zero tokens.
 """
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
 import typer
 from rich import print
 
+from ..generate import generate
 from ..models import Chunk, GoldQuestion
+from ..prereq_graph import load_courses
 from ..retrievers import (
     BM25CodesIdRetriever,
     BM25CodesRetriever,
@@ -25,7 +31,9 @@ from ..retrievers import (
 )
 from ..retrievers.tokenize import CODE_RE
 from ..router import route
-from .metrics import aggregate, to_markdown
+from .human_subset import load_human_labels, write_human_subset
+from .judge import judge
+from .metrics import aggregate, judge_agreement, nan_to_none, to_markdown
 
 REGISTRY = {  # name -> zero-arg factory
     "bm25": BM25Retriever,
@@ -36,6 +44,8 @@ REGISTRY = {  # name -> zero-arg factory
     "graph": GraphRetriever,
     "routed": lambda: RoutedRetriever(GraphRetriever(), BM25CodesIdRetriever()),
 }  # M2: "hybrid+rerank"
+
+HUMAN_SUBSET_RETRIEVER = "routed"  # the human labels are written against this retriever's answers
 
 
 def router_accuracy(gold: list[GoldQuestion]) -> tuple[float, list[str]]:
@@ -72,6 +82,20 @@ def validate_gold(gold: list[GoldQuestion], corpus_ids: set[str]) -> None:
         print(f"[yellow]warning:[/] {len(missing)} gold course ids not in corpus (recall capped): {missing[:10]}")
 
 
+def agreement_label(rows: list[dict], human: list[dict]) -> str:
+    """Judge agreement for one retriever. A human label counts only while the answer it was
+    written against is still this retriever's answer, so stale labels read as unlabeled."""
+    if not human:
+        return "unlabeled"
+    by_id = {r["id"]: r for r in rows}
+    live = [h for h in human if h["id"] in by_id and by_id[h["id"]]["answer"] == h["generated_answer"]]
+    labeled = [h for h in live if h.get("human_correct") is not None]
+    agr = judge_agreement({r["id"]: r["correct"] for r in rows}, human) if len(live) == len(human) else None
+    if agr is None:
+        return f"unlabeled ({len(labeled)}/{len(human)} labeled, {len(live)}/{len(human)} answers current)"
+    return f"{agr:.3f} ({len(human)}/{len(human)})"
+
+
 def main(
     retrievers: list[str] = typer.Option(["bm25"]),
     chunks_path: Path = Path("data/processed/chunks.jsonl"),
@@ -79,6 +103,10 @@ def main(
     k: int = 10,
     reports: Path = Path("reports"),
     note: str = typer.Option("", help="one-line provenance note written above the table"),
+    generate_: bool = typer.Option(False, "--generate", help="run generation + LLM judge (needs .env)"),
+    gen_k: int = typer.Option(5, help="course records handed to the generator"),
+    courses_path: Path = Path("data/processed/courses.jsonl"),
+    human_labels: Path = Path("data/gold/human_labels.jsonl"),
 ):
     chunks = load_jsonl(chunks_path, Chunk)
     gold = load_jsonl(gold_path, GoldQuestion)
@@ -88,28 +116,68 @@ def main(
     acc, misrouted = router_accuracy(gold)
     router_line = (f"router accuracy: {acc:.3f} ({len(gold) - len(misrouted)}/{len(gold)})"
                    + (f"; misrouted: {', '.join(misrouted)}" if misrouted else ""))
-    results = {}
+
+    client = gen_model = judge_model = courses = None
+    if generate_:
+        from ..llm import LLMClient
+
+        client = LLMClient.from_env()
+        gen_model, judge_model = os.environ.get("LLM_MODEL", ""), os.environ.get("JUDGE_MODEL", "")
+        if not gen_model or not judge_model:
+            raise SystemExit("generation needs LLM_MODEL and JUDGE_MODEL in .env")
+        if gen_model == judge_model:
+            print(f"[yellow]warning:[/] LLM_MODEL == JUDGE_MODEL ({gen_model}); the judge should differ")
+        courses = {c.course_id: c for c in load_courses(courses_path)}
+
+    results, generations, agreement = {}, {}, {}
     for name in retrievers:
         r = REGISTRY[name]()
         r.index(chunks)
         rows = []
         for q in gold:
             ranked = [x.course_id for x in r.retrieve(q.question, k=k)]
-            rows.append({"id": q.id, "type": q.type, "has_code": q.has_code,
-                         "ranked": ranked, "gold": q.gold_course_ids})
+            row = {"id": q.id, "type": q.type, "has_code": q.has_code, "ranked": ranked, "gold": q.gold_course_ids}
+            if generate_:
+                top = [courses[cid] for cid in ranked[:gen_k] if cid in courses]
+                g = generate(q.question, top, client, gen_model)
+                v = judge(q.question, q.gold_answer, g.answer, client, judge_model)
+                row.update({"answerable": q.answerable, "question": q.question, "gold_answer": q.gold_answer,
+                            "answer": g.answer, "cited": g.cited_course_ids, "abstained": g.abstained,
+                            "correct": v.correct, "reason": v.reason})
+            rows.append(row)
         results[r.name] = aggregate(rows)
         misses = [row["id"] for row in rows if row["gold"] and not set(row["gold"]) & set(row["ranked"][:5])]
         if misses:
             print(f"[dim]{r.name} recall@5 misses:[/] {', '.join(misses)}")
-    md = to_markdown(results, corpus_size)
-    md = f"> {router_line}\n\n" + md
+        if generate_:
+            generations[r.name] = rows
+            wrong = [row["id"] for row in rows if not row["correct"]]
+            print(f"[dim]{r.name} judged incorrect ({len(wrong)}):[/] {', '.join(wrong)}")
+            if r.name == HUMAN_SUBSET_RETRIEVER and not Path(human_labels).exists():
+                n = write_human_subset(rows, human_labels)
+                print(f"wrote {n} rows to {human_labels} for hand labeling (human_correct: null)")
+    if generate_:
+        human = load_human_labels(human_labels)  # after the loop: same labels for every retriever
+        agreement = {name: agreement_label(rows, human) for name, rows in generations.items()}
+
+    md = to_markdown(results, corpus_size, agreement or None)
+    head = [f"> {router_line}"]
+    if generate_:
+        head.append(f"> generator: {gen_model}; judge: {judge_model}; top-{gen_k} records per question")
+        head.append("> judge agreement (" + ", ".join(f"{n}: {a}" for n, a in agreement.items()) + ")")
+    md = "\n\n".join(head) + "\n\n" + md
     if note:
         md = f"> {note}\n\n" + md
+    if client is not None:
+        md += "\n\n```\n" + client.usage_report() + "\n```"
     print(md)
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted}, "results": results}
-    (reports / f"{stamp}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted}, "results": results,
+               "generation": {"generator": gen_model, "judge": judge_model, "gen_k": gen_k,
+                              "agreement": agreement, "rows": generations} if generate_ else None}
+    (reports / f"{stamp}.json").write_text(
+        json.dumps(nan_to_none(payload), indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
     (reports / "latest.md").write_text(md + "\n", encoding="utf-8")
 
 
