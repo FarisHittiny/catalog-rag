@@ -42,3 +42,28 @@ def test_default_route_is_the_real_router():
     r.index([])
     assert r.retrieve("what does ECEN 350 unlock?")[0].course_id == "graph"
     assert r.retrieve("what is ECEN 350 about?")[0].course_id == "fallback"
+
+
+class ManyStub(Stub):
+    """Graph-like: returns as many results as asked for."""
+
+    def retrieve(self, query: str, k: int = 10) -> list[RetrievalResult]:
+        self.queries.append(query)
+        return [RetrievalResult(course_id=f"{self.name}{i}", score=1.0) for i in range(min(k, 12))]
+
+
+def test_context_for_prereq_route_is_queried_course_plus_all_graph_results():
+    g, f = ManyStub("g"), Stub("fallback")
+    r = RoutedRetriever(g, f, route=lambda q: "prereq")
+    r.index([])
+    ids = r.context("what can I take after ECEN 248 and ecen350?", k=5)
+    assert ids[:2] == ["ECEN 248", "ECEN 350"]  # queried courses first, in question order
+    assert ids[2:] == [f"g{i}" for i in range(12)]  # every graph result, not capped at k
+
+
+def test_context_for_other_route_or_empty_graph_is_fallback_top_k():
+    g, f = Stub("graph", empty=True), ManyStub("f")
+    r = RoutedRetriever(g, f, route=lambda q: "prereq" if "after" in q else "other")
+    r.index([])
+    assert r.context("credits for ECEN 248?", k=5) == [f"f{i}" for i in range(5)]
+    assert r.context("what comes after ECEN 999?", k=3) == [f"f{i}" for i in range(3)]

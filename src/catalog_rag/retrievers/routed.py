@@ -8,6 +8,7 @@ from collections.abc import Callable
 
 from ..models import Chunk, RetrievalResult
 from .base import Retriever
+from .tokenize import extract_codes
 
 
 class RoutedRetriever:
@@ -31,3 +32,15 @@ class RoutedRetriever:
             if out:
                 return out
         return self.fallback.retrieve(query, k=k)
+
+    def context(self, query: str, k: int = 5) -> list[str]:
+        """Course ids to hand the generator. A prereq-routed query with graph results gets the
+        queried course(s) first, then every graph result (lists are short, so no cap): the
+        generator abstained when the course the student asked about was missing from its
+        context. Anything else gets the fallback's top-k, like every other retriever."""
+        if self.route(query) == "prereq":
+            out = self.prereq.retrieve(query, k=10**6)
+            if out:
+                asked = extract_codes(query)
+                return asked + [x.course_id for x in out if x.course_id not in asked]
+        return [x.course_id for x in self.fallback.retrieve(query, k=k)]
