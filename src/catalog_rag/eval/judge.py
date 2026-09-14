@@ -17,7 +17,7 @@ Score 1 only if ALL of these hold:
 - The generated answer states the same facts as the gold answer (course numbers, credits, titles, prerequisites, lists of courses). Paraphrase is fine.
 - Nothing in the generated answer contradicts the gold answer.
 - The generated answer does not invent specifics (numbers, courses, requirements) that the gold answer does not support.
-- If the gold answer lists several courses, the generated answer names them all.
+- If the gold answer lists several courses, the generated answer names them all. An answer that omits any course present in the gold answer is incorrect (0).
 Extra detail that is correct and consistent with the gold answer is fine and does not lower the score.
 
 Abstention: "The catalog doesn't cover that." (or an equivalent refusal) scores 0 whenever the gold answer gives a substantive answer. It scores 1 only when the gold answer itself says the catalog does not cover the question.
