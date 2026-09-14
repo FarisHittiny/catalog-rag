@@ -1,12 +1,13 @@
-from catalog_rag.eval.judge import RUBRIC, Verdict, judge, parse_verdict
+from catalog_rag.eval.judge import JUDGE_PARAMS, RUBRIC, Verdict, judge, parse_verdict
 
 
 class FakeClient:
     def __init__(self, reply: str) -> None:
         self.reply, self.seen = reply, []
 
-    def chat(self, model, messages):
+    def chat(self, model, messages, **params):
         self.seen.append((model, messages))
+        self.params = params
 
         class R:
             content = self.reply
@@ -42,6 +43,7 @@ def test_judge_sends_rubric_and_all_three_inputs():
     assert msgs[0]["content"] == RUBRIC
     user = msgs[1]["content"]
     assert "q?" in user and "gold text" in user and "gen text" in user
+    assert c.params == JUDGE_PARAMS == {"seed": 0}  # judge model refuses temperature != 1
 
 
 def test_braces_inside_reason_do_not_break_parsing():

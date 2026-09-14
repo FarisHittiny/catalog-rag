@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from catalog_rag.llm import LLMClient, Retryable
+from catalog_rag.llm import LLMClient, LLMError, Retryable, _content_or_raise
 
 
 class FakeTransport:
@@ -11,8 +11,9 @@ class FakeTransport:
         self.calls = 0
         self.fail_times = fail_times
 
-    def __call__(self, model: str, messages: list[dict]) -> tuple[str, dict]:
+    def __call__(self, model: str, messages: list[dict], params: dict) -> tuple[str, dict]:
         self.calls += 1
+        self.last_params = params
         if self.calls <= self.fail_times:
             raise Retryable("429")
         return f"reply:{model}:{messages[-1]['content']}", {"prompt_tokens": 10, "completion_tokens": 3}
@@ -43,6 +44,10 @@ def test_cache_key_depends_on_model_and_messages(tmp_path):
     c.chat("m2", [{"role": "user", "content": "hi"}])
     c.chat("m", [{"role": "user", "content": "bye"}])
     assert t.calls == 3
+    c.chat("m", [{"role": "user", "content": "hi"}], temperature=0)  # params are part of the key
+    assert t.calls == 4 and t.last_params == {"temperature": 0}
+    c.chat("m", [{"role": "user", "content": "hi"}], temperature=0)
+    assert t.calls == 4
 
 
 def test_retries_with_backoff_then_succeeds(tmp_path):
@@ -100,3 +105,46 @@ def test_malformed_cache_file_is_refetched(tmp_path):
     out = c.chat("m", msgs)
     assert out.cached is False and t.calls == 2
     assert json.loads(path.read_text(encoding="utf-8"))["content"] == "reply:m:hi"
+
+
+def test_read_cache_false_calls_api_and_overwrites(tmp_path):
+    t = FakeTransport()
+    msgs = [{"role": "user", "content": "hi"}]
+    _client(tmp_path, t).chat("m", msgs)
+    fresh = _client(tmp_path, t, read_cache=False)
+    out = fresh.chat("m", msgs)
+    assert out.cached is False and t.calls == 2
+    assert fresh.usage["m"]["cache_hits"] == 0
+    assert _client(tmp_path, t).chat("m", msgs).cached is True  # the fresh call was written back
+    assert t.calls == 2
+
+
+def test_llm_error_is_not_retried_or_cached(tmp_path):
+    class Broken:
+        calls = 0
+
+        def __call__(self, model, messages, params):
+            self.calls += 1
+            raise LLMError("400: temperature may only be set to 1")
+
+    b = Broken()
+    c = _client(tmp_path, b, max_retries=3)
+    with pytest.raises(LLMError):
+        c.chat("m", [{"role": "user", "content": "hi"}])
+    assert b.calls == 1
+    assert not list((tmp_path / "llm").glob("*.json"))
+
+
+def test_200_error_body_maps_to_llm_error():
+    class Resp:  # what the SDK returns when the proxy answers 200 with {"error": ...}
+        choices = None
+        error = {"message": "litellm.BadRequestError: temperature may only be set to 1", "code": "400"}
+
+    with pytest.raises(LLMError) as e:
+        _content_or_raise(Resp())
+    assert "temperature" in str(e.value)
+
+    from types import SimpleNamespace as NS
+
+    ok = NS(choices=[NS(message=NS(content="fine"))])
+    assert _content_or_raise(ok) == "fine"

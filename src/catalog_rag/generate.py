@@ -15,6 +15,9 @@ from pydantic import BaseModel
 from .models import Course
 
 ABSTAIN = "The catalog doesn't cover that."
+# Pinned sampling for the generator; part of the cache key. The TAMU endpoint honors both for
+# gpt-5.4-mini (identical output on repeat in a probe).
+GEN_PARAMS: dict = {"temperature": 0, "seed": 0}
 
 SYSTEM_PROMPT = f"""You answer questions about Texas A&M ECEN and CSCE courses using ONLY the course records provided in the user message. Never use outside knowledge.
 
@@ -30,7 +33,7 @@ _QUOTE_MAP = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
 
 
 class LLMLike(Protocol):
-    def chat(self, model: str, messages: list[dict]): ...
+    def chat(self, model: str, messages: list[dict], **params): ...
 
 
 class Generation(BaseModel):
@@ -69,5 +72,6 @@ def build_messages(question: str, courses: list[Course]) -> list[dict]:
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
 
-def generate(question: str, courses: list[Course], client: LLMLike, model: str) -> Generation:
-    return parse_answer(client.chat(model, build_messages(question, courses)).content)
+def generate(question: str, courses: list[Course], client: LLMLike, model: str,
+             params: dict = GEN_PARAMS) -> Generation:
+    return parse_answer(client.chat(model, build_messages(question, courses), **params).content)

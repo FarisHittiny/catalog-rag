@@ -29,8 +29,15 @@ Reply with JSON only, exactly this shape and nothing else:
 
 
 
+# The judge model (Claude Sonnet 4.6 via the TAMU proxy) runs with extended thinking on and
+# rejects any temperature other than 1, so judge sampling cannot be pinned. `seed` is accepted
+# without error but is almost certainly ignored on Bedrock; it is sent so the cache key
+# records the intent. Judge drift is measured with `eval.run --fresh` + `eval.compare`.
+JUDGE_PARAMS: dict = {"seed": 0}
+
+
 class LLMLike(Protocol):
-    def chat(self, model: str, messages: list[dict]): ...
+    def chat(self, model: str, messages: list[dict], **params): ...
 
 
 class Verdict(BaseModel):
@@ -58,5 +65,7 @@ def build_messages(question: str, gold_answer: str, generated_answer: str) -> li
     return [{"role": "system", "content": RUBRIC}, {"role": "user", "content": user}]
 
 
-def judge(question: str, gold_answer: str, generated_answer: str, client: LLMLike, model: str) -> Verdict:
-    return parse_verdict(client.chat(model, build_messages(question, gold_answer, generated_answer)).content)
+def judge(question: str, gold_answer: str, generated_answer: str, client: LLMLike, model: str,
+          params: dict = JUDGE_PARAMS) -> Verdict:
+    msgs = build_messages(question, gold_answer, generated_answer)
+    return parse_verdict(client.chat(model, msgs, **params).content)

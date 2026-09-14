@@ -6,8 +6,10 @@ Configured from the environment (loaded from .env):
     LLM_MODEL      generator model (read by eval.run)
     JUDGE_MODEL    judge model, must differ from LLM_MODEL (read by eval.run)
 
-Cache: data/cache/llm/<sha256(model + messages)>.json. A hit never touches the API, so a
-re-run of an unchanged eval costs zero tokens and is byte-for-byte reproducible.
+Cache: data/cache/llm/<sha256(model + messages + params)>.json. A hit never touches the API,
+so a re-run of an unchanged eval costs zero tokens and is byte-for-byte reproducible.
+`read_cache=False` bypasses reads (every call goes to the API) but still writes, which is
+how run-to-run drift is measured.
 Retries: the transport raises `Retryable` on 429 / 5xx / connection / timeout; `chat`
 backs off exponentially (base_delay * 2**attempt, plus jitter) up to `max_retries`.
 The transport is injectable so tests never import openai or touch the network.
@@ -24,11 +26,24 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-Transport = Callable[[str, list[dict]], tuple[str, dict]]  # (model, messages) -> (content, usage)
+Transport = Callable[[str, list[dict], dict], tuple[str, dict]]  # (model, messages, params) -> (content, usage)
 
 
 class Retryable(Exception):
     """Transient API failure (rate limit, server error, connection problem)."""
+
+
+class LLMError(Exception):
+    """Non-retryable API failure (bad request, unsupported parameter). Never cached."""
+
+
+def _content_or_raise(resp) -> str:
+    """The TAMU proxy answers some bad requests with HTTP 200 and an {"error": ...} body; the
+    SDK then returns a ChatCompletion with choices=None. Surface that as LLMError."""
+    choices = getattr(resp, "choices", None)
+    if not choices:
+        raise LLMError(str(getattr(resp, "error", None) or "no choices in response"))
+    return choices[0].message.content or ""
 
 
 @dataclass
@@ -49,10 +64,10 @@ def _openai_transport(base_url: str, api_key: str) -> Transport:
 
     client = OpenAI(base_url=base_url, api_key=api_key, max_retries=0)  # retries are ours
 
-    def call(model: str, messages: list[dict]) -> tuple[str, dict]:
+    def call(model: str, messages: list[dict], params: dict) -> tuple[str, dict]:
         try:
             # stream=False must be explicit: the TAMU proxy streams SSE when the key is absent
-            resp = client.chat.completions.create(model=model, messages=messages, stream=False)
+            resp = client.chat.completions.create(model=model, messages=messages, stream=False, **params)
         except RateLimitError as e:
             raise Retryable(f"429: {e}") from e
         except APIStatusError as e:
@@ -61,7 +76,7 @@ def _openai_transport(base_url: str, api_key: str) -> Transport:
             raise
         except (APIConnectionError, APITimeoutError) as e:
             raise Retryable(str(e)) from e
-        content = resp.choices[0].message.content or ""
+        content = _content_or_raise(resp)
         if not content.strip():
             raise Retryable("empty completion")  # never cache an empty answer
         u = resp.usage
@@ -80,9 +95,11 @@ class LLMClient:
         max_retries: int = 5,
         base_delay: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
+        read_cache: bool = True,
     ) -> None:
         self.transport = transport
         self.cache_dir = Path(cache_dir)
+        self.read_cache = read_cache
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.sleep = sleep
@@ -104,18 +121,19 @@ class LLMClient:
 
     # -- cache -------------------------------------------------------------------------
     @staticmethod
-    def cache_key(model: str, messages: list[dict]) -> str:
-        blob = json.dumps({"model": model, "messages": messages}, sort_keys=True, ensure_ascii=False)
+    def cache_key(model: str, messages: list[dict], params: dict | None = None) -> str:
+        blob = json.dumps({"model": model, "messages": messages, "params": params or {}},
+                          sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def _cache_path(self, key: str) -> Path:
         return self.cache_dir / f"{key}.json"
 
     # -- calls -------------------------------------------------------------------------
-    def chat(self, model: str, messages: list[dict]) -> ChatResult:
-        key = self.cache_key(model, messages)
+    def chat(self, model: str, messages: list[dict], **params) -> ChatResult:
+        key = self.cache_key(model, messages, params)
         path = self._cache_path(key)
-        if path.exists():
+        if self.read_cache and path.exists():
             try:
                 hit = json.loads(path.read_text(encoding="utf-8"))
                 content = hit["content"]
@@ -125,22 +143,22 @@ class LLMClient:
                 self.usage[model]["cache_hits"] += 1
                 return ChatResult(content=content, usage=hit.get("usage", {}), cached=True)
 
-        content, usage = self._call_with_retry(model, messages)
+        content, usage = self._call_with_retry(model, messages, params)
         self.usage[model]["calls"] += 1
         self.usage[model]["prompt_tokens"] += int(usage.get("prompt_tokens", 0))
         self.usage[model]["completion_tokens"] += int(usage.get("completion_tokens", 0))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            json.dumps({"model": model, "messages": messages, "content": content, "usage": usage},
-                       indent=2, ensure_ascii=False),
+            json.dumps({"model": model, "messages": messages, "params": params, "content": content,
+                        "usage": usage}, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
         return ChatResult(content=content, usage=usage, cached=False)
 
-    def _call_with_retry(self, model: str, messages: list[dict]) -> tuple[str, dict]:
+    def _call_with_retry(self, model: str, messages: list[dict], params: dict) -> tuple[str, dict]:
         for attempt in range(self.max_retries + 1):
             try:
-                return self.transport(model, messages)
+                return self.transport(model, messages, params)
             except Retryable:
                 if attempt == self.max_retries:
                     raise

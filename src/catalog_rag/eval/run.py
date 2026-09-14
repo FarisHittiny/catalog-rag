@@ -17,7 +17,7 @@ from pathlib import Path
 import typer
 from rich import print
 
-from ..generate import generate
+from ..generate import GEN_PARAMS, generate
 from ..models import Chunk, GoldQuestion
 from ..prereq_graph import load_courses
 from ..retrievers import (
@@ -32,7 +32,7 @@ from ..retrievers import (
 from ..retrievers.tokenize import CODE_RE
 from ..router import route
 from .human_subset import load_human_labels, write_human_subset
-from .judge import judge
+from .judge import JUDGE_PARAMS, judge
 from .metrics import aggregate, judge_agreement, nan_to_none, to_markdown
 
 REGISTRY = {  # name -> zero-arg factory
@@ -89,7 +89,7 @@ def agreement_label(rows: list[dict], human: list[dict]) -> str:
         return "unlabeled"
     by_id = {r["id"]: r for r in rows}
     live = [h for h in human if h["id"] in by_id and by_id[h["id"]]["answer"] == h["generated_answer"]]
-    labeled = [h for h in live if h.get("human_correct") is not None]
+    labeled = [h for h in human if h.get("human_correct") is not None]
     agr = judge_agreement({r["id"]: r["correct"] for r in rows}, human) if len(live) == len(human) else None
     if agr is None:
         return f"unlabeled ({len(labeled)}/{len(human)} labeled, {len(live)}/{len(human)} answers current)"
@@ -104,6 +104,7 @@ def main(
     reports: Path = Path("reports"),
     note: str = typer.Option("", help="one-line provenance note written above the table"),
     generate_: bool = typer.Option(False, "--generate", help="run generation + LLM judge (needs .env)"),
+    fresh: bool = typer.Option(False, "--fresh", help="bypass LLM cache reads (still writes) to measure drift"),
     gen_k: int = typer.Option(5, help="course records handed to the generator"),
     courses_path: Path = Path("data/processed/courses.jsonl"),
     human_labels: Path = Path("data/gold/human_labels.jsonl"),
@@ -121,7 +122,7 @@ def main(
     if generate_:
         from ..llm import LLMClient
 
-        client = LLMClient.from_env()
+        client = LLMClient.from_env(read_cache=not fresh)
         gen_model, judge_model = os.environ.get("LLM_MODEL", ""), os.environ.get("JUDGE_MODEL", "")
         if not gen_model or not judge_model:
             raise SystemExit("generation needs LLM_MODEL and JUDGE_MODEL in .env")
@@ -164,7 +165,8 @@ def main(
     md = to_markdown(results, corpus_size, agreement or None)
     head = [f"> {router_line}"]
     if generate_:
-        head.append(f"> generator: {gen_model}; judge: {judge_model}; top-{gen_k} records per question")
+        head.append(f"> generator: {gen_model} {GEN_PARAMS}; judge: {judge_model} {JUDGE_PARAMS}; "
+                    f"top-{gen_k} records per question" + ("; --fresh (cache reads bypassed)" if fresh else ""))
         head.append("> judge agreement (" + ", ".join(f"{n}: {a}" for n, a in agreement.items()) + ")")
     md = "\n\n".join(head) + "\n\n" + md
     if note:
@@ -175,7 +177,8 @@ def main(
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted}, "results": results,
-               "generation": {"generator": gen_model, "judge": judge_model, "gen_k": gen_k,
+               "generation": {"generator": gen_model, "judge": judge_model, "gen_k": gen_k, "fresh": fresh,
+                              "gen_params": GEN_PARAMS, "judge_params": JUDGE_PARAMS,
                               "agreement": agreement, "rows": generations} if generate_ else None}
     (reports / f"{stamp}.json").write_text(
         json.dumps(nan_to_none(payload), indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")

@@ -1,5 +1,7 @@
 """generate() with a fake client: checks prompt content, citation parsing, abstention."""
-from catalog_rag.generate import ABSTAIN, SYSTEM_PROMPT, Generation, format_courses, generate, parse_answer
+from catalog_rag.generate import (
+    ABSTAIN, GEN_PARAMS, SYSTEM_PROMPT, Generation, format_courses, generate, parse_answer,
+)
 from catalog_rag.models import Course
 
 
@@ -8,8 +10,9 @@ class FakeClient:
         self.reply = reply
         self.seen: list[tuple[str, list[dict]]] = []
 
-    def chat(self, model, messages):
+    def chat(self, model, messages, **params):
         self.seen.append((model, messages))
+        self.params = params
 
         class R:
             content = self.reply
@@ -44,6 +47,7 @@ def test_generate_sends_system_prompt_and_courses_and_parses_citations():
     assert "how many credits is ECEN 350?" in msgs[1]["content"] and "Pipelines and memory." in msgs[1]["content"]
     assert g.cited_course_ids == ["ECEN 350", "ECEN 248"]
     assert g.abstained is False
+    assert c.params == GEN_PARAMS == {"temperature": 0, "seed": 0}
 
 
 def test_citation_regex_is_strict_about_case_but_tolerates_missing_space():
