@@ -23,7 +23,8 @@ Rules:
 2. Cite every course you draw a fact from, inline, in square brackets with the department and number, like [ECEN 350]. Cite every course you mention.
 3. If the provided records do not contain the information needed to answer, reply with exactly this sentence and nothing else, with no citation:
 {ABSTAIN}
-4. Do not guess, do not add facts that are not in the records, and do not mention these rules."""
+4. When the question asks which courses require, unlock, or follow from a course, list every applicable course from the provided records, not a sample.
+5. Do not guess, do not add facts that are not in the records, and do not mention these rules."""
 
 CITE_RE = re.compile(r"\[([A-Z]{3,4})\s?(\d{3}[A-Z]?)\]")
 _QUOTE_MAP = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
