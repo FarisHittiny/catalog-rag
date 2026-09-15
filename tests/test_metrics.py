@@ -50,6 +50,18 @@ def test_aggregate_splits_on_has_code_when_present():
     assert "has_code" not in plain and "no_code" not in plain
 
 
+def test_aggregate_splits_on_paraphrase_when_present():
+    rows = [
+        {"type": "factual", "paraphrase": True, "ranked": ["x"], "gold": ["a"]},
+        {"type": "factual", "paraphrase": False, "ranked": ["a"], "gold": ["a"]},
+    ]
+    agg = aggregate(rows, ks=(1,))
+    assert agg["paraphrase"]["n"] == 1 and agg["paraphrase"]["recall@1"] == 0.0
+    assert agg["overall"]["n"] == 2
+    plain = aggregate([{"type": "factual", "paraphrase": False, "ranked": ["a"], "gold": ["a"]}], ks=(1,))
+    assert "paraphrase" not in plain
+
+
 # ---- M2 answer metrics -------------------------------------------------------------
 from catalog_rag.eval.metrics import (  # noqa: E402
     abstention_accuracy,

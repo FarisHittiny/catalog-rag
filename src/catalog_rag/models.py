@@ -53,6 +53,7 @@ class GoldQuestion(BaseModel):
     notes: str = ""
     verified: bool = True  # False = drafted, not yet checked against the catalog page
     has_code: bool = False  # question text names at least one course code
+    paraphrase: bool = False  # describes the course without quoting its title/description (out-of-sample vocabulary)
 
 
 class RetrievalResult(BaseModel):

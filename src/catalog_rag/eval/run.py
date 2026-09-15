@@ -137,7 +137,8 @@ def main(
         rows = []
         for q in gold:
             ranked = [x.course_id for x in r.retrieve(q.question, k=k)]
-            row = {"id": q.id, "type": q.type, "has_code": q.has_code, "ranked": ranked, "gold": q.gold_course_ids}
+            row = {"id": q.id, "type": q.type, "has_code": q.has_code, "paraphrase": q.paraphrase,
+                   "ranked": ranked, "gold": q.gold_course_ids}
             if generate_:
                 ids = r.context(q.question, gen_k) if hasattr(r, "context") else ranked[:gen_k]
                 top = [courses[cid] for cid in ids if cid in courses]
