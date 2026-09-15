@@ -78,10 +78,13 @@ def _referenced(q: GoldQuestion) -> str:
     return q.gold_course_ids[0]
 
 
-def test_stubs_are_unverified_code_free_paraphrases(rows):
+def test_stubs_are_unverified_paraphrases(rows):
+    """Factual stubs are code-free; prereq stubs name the source course X by code and
+    paraphrase only the asking (the router is what they test)."""
     stubs = _stubs(rows)
     assert stubs, "stubs file present but empty"
-    assert all(not q.verified and not q.has_code and q.paraphrase for q in stubs)
+    assert all(not q.verified and q.paraphrase for q in stubs)
+    assert all(q.has_code == (q.type == "prereq") for q in stubs)
 
 
 def test_paraphrase_questions_do_not_quote_the_record(rows, courses):
@@ -91,7 +94,8 @@ def test_paraphrase_questions_do_not_quote_the_record(rows, courses):
             continue
         c = courses[_referenced(q)]
         record = set(re.findall(r"[a-z0-9]+", (c.title + " " + c.description).lower()))
-        words = [w for w in re.findall(r"[a-z0-9]+", q.question.lower()) if len(w) >= 3 and w not in GENERIC]
+        asked = CODE_RE.sub(" ", q.question)  # the code is the anchor, not vocabulary
+        words = [w for w in re.findall(r"[a-z0-9]+", asked.lower()) if len(w) >= 3 and w not in GENERIC]
         hits = [w for w in words if w in record]
         if hits:
             bad[q.id] = hits
