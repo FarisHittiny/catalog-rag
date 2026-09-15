@@ -1,22 +1,68 @@
-> router accuracy: 1.000 (100/100)
+> M3: 115 questions (100 + 15 paraphrase g101-g115); generation + judge for routed and bm25_codes_id
+
+> router accuracy: 0.957 (110/115); misrouted: g111, g112, g113, g114, g115; paraphrase: 0.667 (10/15)
 
 > generator: protected.gpt-5.4-mini {'temperature': 0, 'seed': 0}; judge: protected.Claude Sonnet 4.6 {'seed': 0}; top-5 records per question
 
-> judge agreement (routed: 0.900 (30/30))
+> judge agreement (bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30))
 
 | retriever | corpus | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| routed | 148 | overall | 85 | 0.635 | 0.915 | 0.974 | 0.969 | 100 | 0.840 | 0.939 | 0.960 | 0.900 (30/30) |
-| routed | 148 | factual | 40 | 0.975 | 1.000 | 1.000 | 0.988 | 40 | 0.825 | 0.948 | 0.925 | - |
-| routed | 148 | has_code | 65 | 0.561 | 0.889 | 0.966 | 0.977 | 79 | 0.797 | 0.931 | 0.949 | - |
-| routed | 148 | prereq | 25 | 0.293 | 0.731 | 0.913 | 1.000 | 25 | 0.840 | 0.900 | 1.000 | - |
-| routed | 148 | no_code | 20 | 0.875 | 1.000 | 1.000 | 0.942 | 21 | 1.000 | 0.963 | 1.000 | - |
+| bm25 | 148 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | - | - | - | - | - |
+| bm25 | 148 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | - | - | - | - | - |
+| bm25 | 148 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | - | - | - | - | - |
+| bm25 | 148 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | - | - | - | - | - |
+| bm25 | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | - | - | - | - | - |
+| bm25 | 148 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | - | - | - | - | - |
+| bm25 | 148 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | - | - | - | - | - |
+| bm25_codes | 148 | overall | 100 | 0.414 | 0.756 | 0.837 | 0.746 | - | - | - | - | - |
+| bm25_codes | 148 | factual | 50 | 0.600 | 0.720 | 0.780 | 0.645 | - | - | - | - | - |
+| bm25_codes | 148 | has_code | 70 | 0.342 | 0.795 | 0.910 | 0.796 | - | - | - | - | - |
+| bm25_codes | 148 | prereq | 30 | 0.125 | 0.715 | 0.885 | 0.817 | - | - | - | - | - |
+| bm25_codes | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | - | - | - | - | - |
+| bm25_codes | 148 | multi_hop | 20 | 0.383 | 0.908 | 0.908 | 0.892 | - | - | - | - | - |
+| bm25_codes | 148 | paraphrase | 15 | 0.030 | 0.304 | 0.326 | 0.233 | - | - | - | - | - |
+| bm25_codes_id | 148 | overall | 100 | 0.467 | 0.801 | 0.865 | 0.720 | 115 | 0.652 | 0.921 | 0.887 | unlabeled (30/30 labeled, 22/30 answers current) |
+| bm25_codes_id | 148 | factual | 50 | 0.780 | 0.800 | 0.800 | 0.790 | 50 | 0.660 | 0.923 | 0.760 | - |
+| bm25_codes_id | 148 | has_code | 70 | 0.417 | 0.859 | 0.950 | 0.760 | 84 | 0.643 | 0.922 | 0.952 | - |
+| bm25_codes_id | 148 | prereq | 30 | 0.000 | 0.688 | 0.883 | 0.489 | 30 | 0.400 | 0.886 | 1.000 | - |
+| bm25_codes_id | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.677 | 0.917 | 0.710 | - |
+| bm25_codes_id | 148 | multi_hop | 20 | 0.383 | 0.975 | 1.000 | 0.892 | 20 | 0.800 | 0.970 | 1.000 | - |
+| bm25_codes_id | 148 | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 | - |
+| bm25_codes_id | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
+| dense | 148 | overall | 100 | 0.299 | 0.567 | 0.698 | 0.571 | - | - | - | - | - |
+| dense | 148 | factual | 50 | 0.420 | 0.740 | 0.840 | 0.548 | - | - | - | - | - |
+| dense | 148 | has_code | 70 | 0.134 | 0.417 | 0.582 | 0.468 | - | - | - | - | - |
+| dense | 148 | prereq | 30 | 0.134 | 0.272 | 0.437 | 0.557 | - | - | - | - | - |
+| dense | 148 | no_code | 30 | 0.683 | 0.917 | 0.967 | 0.813 | - | - | - | - | - |
+| dense | 148 | multi_hop | 20 | 0.242 | 0.575 | 0.733 | 0.650 | - | - | - | - | - |
+| dense | 148 | paraphrase | 15 | 0.467 | 0.711 | 0.904 | 0.601 | - | - | - | - | - |
+| hybrid | 148 | overall | 100 | 0.378 | 0.702 | 0.806 | 0.690 | - | - | - | - | - |
+| hybrid | 148 | factual | 50 | 0.520 | 0.720 | 0.800 | 0.598 | - | - | - | - | - |
+| hybrid | 148 | has_code | 70 | 0.282 | 0.704 | 0.837 | 0.700 | - | - | - | - | - |
+| hybrid | 148 | prereq | 30 | 0.170 | 0.586 | 0.764 | 0.757 | - | - | - | - | - |
+| hybrid | 148 | no_code | 30 | 0.600 | 0.700 | 0.733 | 0.665 | - | - | - | - | - |
+| hybrid | 148 | multi_hop | 20 | 0.333 | 0.833 | 0.883 | 0.818 | - | - | - | - | - |
+| hybrid | 148 | paraphrase | 15 | 0.163 | 0.363 | 0.444 | 0.331 | - | - | - | - | - |
+| graph | 148 | overall | 100 | 0.113 | 0.260 | 0.340 | 0.328 | - | - | - | - | - |
+| graph | 148 | factual | 50 | 0.000 | 0.000 | 0.020 | 0.003 | - | - | - | - | - |
+| graph | 148 | has_code | 70 | 0.161 | 0.371 | 0.485 | 0.468 | - | - | - | - | - |
+| graph | 148 | prereq | 30 | 0.359 | 0.761 | 0.927 | 1.000 | - | - | - | - | - |
+| graph | 148 | no_code | 30 | 0.000 | 0.000 | 0.000 | 0.000 | - | - | - | - | - |
+| graph | 148 | multi_hop | 20 | 0.025 | 0.158 | 0.258 | 0.131 | - | - | - | - | - |
+| graph | 148 | paraphrase | 15 | 0.230 | 0.304 | 0.333 | 0.333 | - | - | - | - | - |
+| routed | 148 | overall | 100 | 0.540 | 0.822 | 0.877 | 0.848 | 115 | 0.757 | 0.920 | 0.887 | 0.900 (30/30) |
+| routed | 148 | factual | 50 | 0.780 | 0.800 | 0.800 | 0.790 | 50 | 0.660 | 0.923 | 0.760 | - |
+| routed | 148 | has_code | 70 | 0.521 | 0.889 | 0.967 | 0.943 | 84 | 0.786 | 0.921 | 0.952 | - |
+| routed | 148 | prereq | 30 | 0.244 | 0.757 | 0.923 | 0.917 | 30 | 0.800 | 0.883 | 1.000 | - |
+| routed | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.677 | 0.917 | 0.710 | - |
 | routed | 148 | multi_hop | 20 | 0.383 | 0.975 | 1.000 | 0.892 | 20 | 0.800 | 0.970 | 1.000 | - |
+| routed | 148 | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 | - |
 | routed | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
 
 ```
 token usage (this run; cache hits cost nothing):
-  protected.gpt-5.4-mini: 0 api calls, 100 cache hits, 0 prompt + 0 completion tokens
-  protected.Claude Sonnet 4.6: 0 api calls, 100 cache hits, 0 prompt + 0 completion tokens
-  total: 0 api calls, 200 cache hits, 0 prompt + 0 completion tokens
+  protected.gpt-5.4-mini: 40 api calls, 190 cache hits, 28377 prompt + 2055 completion tokens
+  protected.Claude Sonnet 4.6: 40 api calls, 190 cache hits, 18399 prompt + 4847 completion tokens
+  total: 80 api calls, 380 cache hits, 46776 prompt + 6902 completion tokens
 ```

@@ -104,6 +104,7 @@ def main(
     reports: Path = Path("reports"),
     note: str = typer.Option("", help="one-line provenance note written above the table"),
     generate_: bool = typer.Option(False, "--generate", help="run generation + LLM judge (needs .env)"),
+    gen_retrievers: list[str] = typer.Option([], "--gen-retriever", help="with --generate, only these retrievers generate (default: all)"),
     fresh: bool = typer.Option(False, "--fresh", help="bypass LLM cache reads (still writes) to measure drift"),
     gen_k: int = typer.Option(5, help="course records handed to the generator"),
     courses_path: Path = Path("data/processed/courses.jsonl"),
@@ -117,6 +118,10 @@ def main(
     acc, misrouted = router_accuracy(gold)
     router_line = (f"router accuracy: {acc:.3f} ({len(gold) - len(misrouted)}/{len(gold)})"
                    + (f"; misrouted: {', '.join(misrouted)}" if misrouted else ""))
+    para = [q for q in gold if q.paraphrase]  # out-of-sample phrasings, reported on their own
+    para_acc, para_bad = router_accuracy(para) if para else (float("nan"), [])
+    if para:
+        router_line += f"; paraphrase: {para_acc:.3f} ({len(para) - len(para_bad)}/{len(para)})"
 
     client = gen_model = judge_model = courses = None
     if generate_:
@@ -134,12 +139,13 @@ def main(
     for name in retrievers:
         r = REGISTRY[name]()
         r.index(chunks)
+        do_gen = generate_ and (not gen_retrievers or name in gen_retrievers)
         rows = []
         for q in gold:
             ranked = [x.course_id for x in r.retrieve(q.question, k=k)]
             row = {"id": q.id, "type": q.type, "has_code": q.has_code, "paraphrase": q.paraphrase,
                    "ranked": ranked, "gold": q.gold_course_ids}
-            if generate_:
+            if do_gen:
                 ids = r.context(q.question, gen_k) if hasattr(r, "context") else ranked[:gen_k]
                 top = [courses[cid] for cid in ids if cid in courses]
                 g = generate(q.question, top, client, gen_model)
@@ -152,7 +158,7 @@ def main(
         misses = [row["id"] for row in rows if row["gold"] and not set(row["gold"]) & set(row["ranked"][:5])]
         if misses:
             print(f"[dim]{r.name} recall@5 misses:[/] {', '.join(misses)}")
-        if generate_:
+        if do_gen:
             generations[r.name] = rows
             wrong = [row["id"] for row in rows if not row["correct"]]
             print(f"[dim]{r.name} judged incorrect ({len(wrong)}):[/] {', '.join(wrong)}")
@@ -177,7 +183,9 @@ def main(
     print(md)
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted}, "results": results,
+    payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted,
+                                        "paraphrase": {"accuracy": para_acc, "misrouted": para_bad}},
+               "results": results,
                "generation": {"generator": gen_model, "judge": judge_model, "gen_k": gen_k, "fresh": fresh,
                               "gen_params": GEN_PARAMS, "judge_params": JUDGE_PARAMS,
                               "agreement": agreement, "rows": generations} if generate_ else None}
