@@ -1,5 +1,3 @@
-> M3: 115 questions (100 + 15 paraphrase g101-g115); generation + judge for routed and bm25_codes_id
-
 > router accuracy: 0.957 (110/115); misrouted: g111, g112, g113, g114, g115; paraphrase: 0.667 (10/15)
 
 > generator: protected.gpt-5.4-mini {'temperature': 0, 'seed': 0}; judge: protected.Claude Sonnet 4.6 {'seed': 0}; top-5 records per question
@@ -62,7 +60,7 @@
 
 ```
 token usage (this run; cache hits cost nothing):
-  protected.gpt-5.4-mini: 40 api calls, 190 cache hits, 28377 prompt + 2055 completion tokens
-  protected.Claude Sonnet 4.6: 40 api calls, 190 cache hits, 18399 prompt + 4847 completion tokens
-  total: 80 api calls, 380 cache hits, 46776 prompt + 6902 completion tokens
+  protected.gpt-5.4-mini: 0 api calls, 230 cache hits, 0 prompt + 0 completion tokens
+  protected.Claude Sonnet 4.6: 0 api calls, 230 cache hits, 0 prompt + 0 completion tokens
+  total: 0 api calls, 460 cache hits, 0 prompt + 0 completion tokens
 ```
