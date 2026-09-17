@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .env
 data/raw/*.html
-data/processed/*.jsonl
 data/processed/*.npy
 data/processed/*.meta.json
 reports/*.json
