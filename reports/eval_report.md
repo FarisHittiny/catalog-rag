@@ -111,6 +111,27 @@ Router accuracy on this run: 0.957 (110/115); the five misses are g111 to g115. 
 
 **The "list every course" prompt rule.** One rule added to the system prompt on 2026-09-13 told the generator to list every applicable course on require/unlock/follow-from questions. On the 100-question set of that day it moved overall correctness from 0.850 to 0.850, cut citation precision from 0.962 to 0.906, and lowered prereq correctness from 0.840 to 0.760. The generator started citing courses it mentioned in passing. Reverted the next day.
 
+## Post-hoc: dense routing for code-free questions
+
+This experiment was designed AFTER seeing the paraphrase results above. The finding that dense retrieval reaches 0.711 on the paraphrase split while every lexical retriever stays at or below 0.363 is what motivated it, so for this retriever the paraphrase row is no longer held-out: it is the row the change was built to move, and the number below is in-sample with respect to that design choice. The README headline table and the final table above stay on routed, the last retriever built before the paraphrase rows were seen.
+
+**routed_v2.** Same router, same graph route for prereq questions, same bm25_codes_id for anything that names a course code. The one change: a non-prereq question in which the tokenizer finds no course code goes to dense instead of bm25_codes_id. Generation context is unchanged (queried course plus every graph result on the prereq route, top-5 otherwise). Registered as `routed_v2` in `eval.run`; the class is `RoutedRetriever` with `no_code=DenseRetriever()`.
+
+Run of 2026-09-18, same generator, judge and gold set as the final table. Retrieval columns over the answerable rows of each split; generation columns over every row of the split.
+
+| retriever | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc |
+|---|---|---|---|---|---|---|---|---|---|---|
+| routed | overall | 100 | 0.540 | 0.822 | 0.877 | 0.848 | 115 | 0.757 | 0.920 | 0.887 |
+| routed_v2 | overall | 100 | 0.570 | 0.897 | 0.967 | 0.904 | 115 | 0.809 | 0.930 | 0.930 |
+| routed | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.677 | 0.917 | 0.710 |
+| routed_v2 | no_code | 30 | 0.683 | 0.917 | 0.967 | 0.813 | 31 | 0.871 | 0.952 | 0.871 |
+| routed | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 |
+| routed_v2 | paraphrase | 15 | 0.333 | 0.830 | 0.926 | 0.571 | 15 | 0.667 | 0.875 | 0.800 |
+
+What moved and what did not. The has_code and prereq rows of routed_v2 are identical to routed's (has_code recall@5 0.889, correctness 0.786; prereq 0.757, 0.800), because every question that names a code takes the same path as before; the whole difference is the 31 code-free rows. On those, recall@5 goes from 0.667 to 0.917, which is dense's own no_code number, and correctness from 0.677 to 0.871. The paraphrase split reaches recall@5 0.830, above dense's standalone 0.711, because the five prereq paraphrases carry a code and stay on bm25_codes_id, where the code token finds them. The two paraphrase misses left are g102 (digital communications) and g108 (compiler design). Judged incorrect on paraphrases: g102, g106, g108, g113, g114; the last two are the prereq paraphrases the router still sends to the wrong retriever. One code-free multi_hop row (g084, "can I take the compiler design class right after programming studio?") flipped from correct to incorrect: bm25_codes_id had both CSCE 434 and CSCE 315 in its top 5, dense keeps CSCE 434 but pushes CSCE 315 below rank 5, and the generator abstains without it. multi_hop correctness dips from 0.800 to 0.750 while its recall@10 stays 1.000.
+
+Judge agreement is not reported for routed_v2 (26/30 labeled answers current): the human labels are bound to routed's generated answers, and dense changes the context, and so the answer, on four of the 30 labeled questions. The 0.900 on routed still holds. Deciding whether routed_v2 replaces routed would need a new held-out set written without looking at these numbers.
+
 ## Caveats
 
 - Graph prereq recall is by construction: the prereq gold ids were derived from the same graph the retriever queries, so the claim rests on the prerequisite-string parser matching the catalog, which was checked by hand on 25 prereq rows.

@@ -1,10 +1,10 @@
-> M3: 115 questions; generation + judge for bm25 (baseline, plain top-5), bm25_codes_id, routed
+> M3: 115 questions; generation + judge for bm25 (baseline, plain top-5), bm25_codes_id, routed, routed_v2. routed_v2 is post-hoc: designed after the paraphrase results, so its paraphrase row is not held-out
 
 > router accuracy: 0.957 (110/115); misrouted: g111, g112, g113, g114, g115; paraphrase: 0.667 (10/15)
 
 > generator: protected.gpt-5.4-mini {'temperature': 0, 'seed': 0}; judge: protected.Claude Sonnet 4.6 {'seed': 0}; top-5 records per question
 
-> judge agreement (bm25: unlabeled (30/30 labeled, 14/30 answers current), bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30))
+> judge agreement (bm25: unlabeled (30/30 labeled, 14/30 answers current), bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30), routed_v2: unlabeled (30/30 labeled, 26/30 answers current))
 
 | retriever | corpus | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -60,10 +60,18 @@
 | routed | 148 | multi_hop | 20 | 0.383 | 0.975 | 1.000 | 0.892 | 20 | 0.800 | 0.970 | 1.000 | - |
 | routed | 148 | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 | - |
 | routed | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
+| routed_v2 | 148 | overall | 100 | 0.570 | 0.897 | 0.967 | 0.904 | 115 | 0.809 | 0.930 | 0.930 | unlabeled (30/30 labeled, 26/30 answers current) |
+| routed_v2 | 148 | factual | 50 | 0.820 | 0.960 | 0.980 | 0.878 | 50 | 0.800 | 0.945 | 0.880 | - |
+| routed_v2 | 148 | has_code | 70 | 0.521 | 0.889 | 0.967 | 0.943 | 84 | 0.786 | 0.921 | 0.952 | - |
+| routed_v2 | 148 | prereq | 30 | 0.244 | 0.757 | 0.923 | 0.917 | 30 | 0.800 | 0.883 | 1.000 | - |
+| routed_v2 | 148 | no_code | 30 | 0.683 | 0.917 | 0.967 | 0.813 | 31 | 0.871 | 0.952 | 0.871 | - |
+| routed_v2 | 148 | multi_hop | 20 | 0.433 | 0.950 | 1.000 | 0.950 | 20 | 0.750 | 0.968 | 0.950 | - |
+| routed_v2 | 148 | paraphrase | 15 | 0.333 | 0.830 | 0.926 | 0.571 | 15 | 0.667 | 0.875 | 0.800 | - |
+| routed_v2 | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
 
 ```
 token usage (this run; cache hits cost nothing):
-  protected.gpt-5.4-mini: 82 api calls, 263 cache hits, 58098 prompt + 2973 completion tokens
-  protected.Claude Sonnet 4.6: 66 api calls, 279 cache hits, 30172 prompt + 7451 completion tokens
-  total: 148 api calls, 542 cache hits, 88270 prompt + 10424 completion tokens
+  protected.gpt-5.4-mini: 31 api calls, 429 cache hits, 20804 prompt + 992 completion tokens
+  protected.Claude Sonnet 4.6: 19 api calls, 441 cache hits, 8260 prompt + 1530 completion tokens
+  total: 50 api calls, 870 cache hits, 29064 prompt + 2522 completion tokens
 ```

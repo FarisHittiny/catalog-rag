@@ -43,7 +43,10 @@ REGISTRY = {  # name -> zero-arg factory
     "hybrid": lambda: HybridRetriever([BM25CodesRetriever(), DenseRetriever()]),
     "graph": GraphRetriever,
     "routed": lambda: RoutedRetriever(GraphRetriever(), BM25CodesIdRetriever()),
-}  # M2: "hybrid+rerank"
+    # post-hoc (designed after the paraphrase results): code-free non-prereq questions -> dense
+    "routed_v2": lambda: RoutedRetriever(GraphRetriever(), BM25CodesIdRetriever(),
+                                         no_code=DenseRetriever(), name="routed_v2"),
+}
 
 HUMAN_SUBSET_RETRIEVER = "routed"  # the human labels are written against this retriever's answers
 

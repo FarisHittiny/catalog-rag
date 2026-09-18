@@ -67,3 +67,35 @@ def test_context_for_other_route_or_empty_graph_is_fallback_top_k():
     r.index([])
     assert r.context("credits for ECEN 248?", k=5) == [f"f{i}" for i in range(5)]
     assert r.context("what comes after ECEN 999?", k=3) == [f"f{i}" for i in range(3)]
+
+
+# ---- routed_v2 (post-hoc): code-free non-prereq questions go to a third retriever ----
+def test_no_code_retriever_takes_code_free_non_prereq_queries_only():
+    g, f, d = Stub("graph"), Stub("fallback"), Stub("dense")
+    r = RoutedRetriever(g, f, route=lambda q: "prereq" if "after" in q else "other", no_code=d, name="routed_v2")
+    r.index([])
+    assert g.indexed and f.indexed and d.indexed
+    assert r.name == "routed_v2"
+    assert r.retrieve("the class where you build a CPU?")[0].course_id == "dense"
+    assert r.retrieve("how many credits is ECEN 248?")[0].course_id == "fallback"
+    assert r.retrieve("what comes after ECEN 248?")[0].course_id == "graph"
+    assert d.queries == ["the class where you build a CPU?"]
+    assert f.queries == ["how many credits is ECEN 248?"]
+
+
+def test_no_code_retriever_feeds_context_and_empty_graph_falls_to_it_when_code_free():
+    g, f, d = Stub("graph", empty=True), ManyStub("f"), ManyStub("d")
+    r = RoutedRetriever(g, f, route=lambda q: "prereq" if "unlock" in q else "other", no_code=d)
+    r.index([])
+    assert r.context("the operating systems class, credits?", k=3) == [f"d{i}" for i in range(3)]
+    assert r.context("credits for ECEN 248?", k=2) == [f"f{i}" for i in range(2)]
+    assert r.retrieve("what does the data structures class unlock?")[0].course_id == "d0"
+
+
+def test_without_no_code_retriever_behaviour_is_unchanged():
+    g, f = Stub("graph"), Stub("fallback")
+    r = RoutedRetriever(g, f, route=lambda q: "other")
+    r.index([])
+    assert r.name == "routed"
+    assert r.retrieve("the class where you build a CPU?")[0].course_id == "fallback"
+    assert r.context("the class where you build a CPU?") == ["fallback"]
