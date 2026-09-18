@@ -1,6 +1,6 @@
 # catalog-rag eval report
 
-All numbers below come from `reports/latest.md` (run of 2026-09-16, commit d881fb1) unless a sentence names an earlier run. Corpus: 148 courses.
+All numbers below come from `reports/latest.md` (run of 2026-09-18) unless a sentence names an earlier run. Corpus: 148 courses.
 
 ## What this is
 
@@ -36,17 +36,18 @@ In the order they were built. Every retriever indexes the same 148 chunks (one p
 
 ## Final table
 
-Retrieval columns are over the 100 answerable questions (n). Generation columns (n_gen, correctness, citation_prec, abstain_acc) are over all 115 and were run for routed and bm25_codes_id only. Generator: gpt-5.4-mini, temperature 0, seed 0, top-5 records per question. Judge: Claude Sonnet 4.6. Judge agreement is against the 30 human labels and is reported only where every labeled answer is current.
+Retrieval columns are over the 100 answerable questions (n). Generation columns (n_gen, correctness, citation_prec, abstain_acc) are over all 115 and were run for bm25, bm25_codes_id and routed. bm25 generation uses its plain top-5 with no context construction (no queried-course-first, no uncapped graph list); bm25_codes_id likewise; routed builds context for prereq-routed questions as described above. Generator: gpt-5.4-mini, temperature 0, seed 0, top-5 records per question. Judge: Claude Sonnet 4.6. Judge agreement is against the 30 human labels and is reported only where every labeled answer is current.
 
 | retriever | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| bm25 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | - | - | - | - | - |
-| bm25 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | - | - | - | - | - |
-| bm25 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | - | - | - | - | - |
-| bm25 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | - | - | - | - | - |
-| bm25 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | - | - | - | - | - |
-| bm25 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | - | - | - | - | - |
-| bm25 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | - | - | - | - | - |
+| bm25 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | 115 | 0.557 | 0.922 | 0.774 | unlabeled (30/30 labeled, 14/30 answers current) |
+| bm25 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | 50 | 0.560 | 0.917 | 0.660 | - |
+| bm25 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | 30 | 0.300 | 0.890 | 0.833 | - |
+| bm25 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | 20 | 0.600 | 0.984 | 0.800 | - |
+| bm25 | not_in_catalog | 0 | - | - | - | - | 15 | 1.000 | - | 1.000 | - |
+| bm25 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | 84 | 0.524 | 0.925 | 0.798 | - |
+| bm25 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.645 | 0.917 | 0.710 | - |
+| bm25 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | 15 | 0.267 | 0.625 | 0.400 | - |
 | bm25_codes | overall | 100 | 0.414 | 0.756 | 0.837 | 0.746 | - | - | - | - | - |
 | bm25_codes | factual | 50 | 0.600 | 0.720 | 0.780 | 0.645 | - | - | - | - | - |
 | bm25_codes | prereq | 30 | 0.125 | 0.715 | 0.885 | 0.817 | - | - | - | - | - |

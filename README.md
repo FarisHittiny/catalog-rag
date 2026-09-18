@@ -8,10 +8,10 @@ Eval-driven retrieval-augmented question answering over the ECEN and CSCE course
 
 | retriever | recall@5 | MRR | correctness | judge agreement |
 |---|---|---|---|---|
-| bm25 (baseline) | 0.671 | 0.635 | - | - |
+| bm25 (baseline) | 0.671 | 0.635 | 0.557 | - |
 | routed | 0.822 | 0.848 | 0.757 | 0.900 |
 
-Corpus of 148 courses. Retrieval metrics over the 100 answerable questions; correctness over all 115, judged by Claude Sonnet 4.6 against hand-written gold answers, with the generator (gpt-5.4-mini) pinned at temperature 0. Judge agreement is on the 30 human-labeled rows. Correctness was not run for the baseline.
+Corpus of 148 courses. Retrieval metrics over the 100 answerable questions; correctness over all 115, judged by Claude Sonnet 4.6 against hand-written gold answers, with the generator (gpt-5.4-mini) pinned at temperature 0. Judge agreement is on the 30 human-labeled rows, which were labeled against routed's answers, so it is reported for routed only. bm25 generation hands the generator its plain top-5 with no context construction; routed hands prereq questions the queried course plus every graph result.
 
 The one place the system fails is paraphrases: on the 15 questions that share no vocabulary with the record, dense retrieval reaches recall@5 0.711 and every lexical retriever, routed included, stays at or below 0.363, because a student who describes a course without naming it or quoting its title gets nothing from BM25.
 

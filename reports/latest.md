@@ -1,18 +1,21 @@
+> M3: 115 questions; generation + judge for bm25 (baseline, plain top-5), bm25_codes_id, routed
+
 > router accuracy: 0.957 (110/115); misrouted: g111, g112, g113, g114, g115; paraphrase: 0.667 (10/15)
 
 > generator: protected.gpt-5.4-mini {'temperature': 0, 'seed': 0}; judge: protected.Claude Sonnet 4.6 {'seed': 0}; top-5 records per question
 
-> judge agreement (bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30))
+> judge agreement (bm25: unlabeled (30/30 labeled, 14/30 answers current), bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30))
 
 | retriever | corpus | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| bm25 | 148 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | - | - | - | - | - |
-| bm25 | 148 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | - | - | - | - | - |
-| bm25 | 148 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | - | - | - | - | - |
-| bm25 | 148 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | - | - | - | - | - |
-| bm25 | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | - | - | - | - | - |
-| bm25 | 148 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | - | - | - | - | - |
-| bm25 | 148 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | - | - | - | - | - |
+| bm25 | 148 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | 115 | 0.557 | 0.922 | 0.774 | unlabeled (30/30 labeled, 14/30 answers current) |
+| bm25 | 148 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | 50 | 0.560 | 0.917 | 0.660 | - |
+| bm25 | 148 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | 84 | 0.524 | 0.925 | 0.798 | - |
+| bm25 | 148 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | 30 | 0.300 | 0.890 | 0.833 | - |
+| bm25 | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.645 | 0.917 | 0.710 | - |
+| bm25 | 148 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | 20 | 0.600 | 0.984 | 0.800 | - |
+| bm25 | 148 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | 15 | 0.267 | 0.625 | 0.400 | - |
+| bm25 | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 1.000 | - | 1.000 | - |
 | bm25_codes | 148 | overall | 100 | 0.414 | 0.756 | 0.837 | 0.746 | - | - | - | - | - |
 | bm25_codes | 148 | factual | 50 | 0.600 | 0.720 | 0.780 | 0.645 | - | - | - | - | - |
 | bm25_codes | 148 | has_code | 70 | 0.342 | 0.795 | 0.910 | 0.796 | - | - | - | - | - |
@@ -60,7 +63,7 @@
 
 ```
 token usage (this run; cache hits cost nothing):
-  protected.gpt-5.4-mini: 0 api calls, 230 cache hits, 0 prompt + 0 completion tokens
-  protected.Claude Sonnet 4.6: 0 api calls, 230 cache hits, 0 prompt + 0 completion tokens
-  total: 0 api calls, 460 cache hits, 0 prompt + 0 completion tokens
+  protected.gpt-5.4-mini: 82 api calls, 263 cache hits, 58098 prompt + 2973 completion tokens
+  protected.Claude Sonnet 4.6: 66 api calls, 279 cache hits, 30172 prompt + 7451 completion tokens
+  total: 148 api calls, 542 cache hits, 88270 prompt + 10424 completion tokens
 ```
