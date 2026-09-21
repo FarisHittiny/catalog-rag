@@ -74,6 +74,8 @@ def _splits(r: dict) -> list[str]:
         out.append("has_code" if r["has_code"] else "no_code")
     if r.get("paraphrase"):
         out.append("paraphrase")
+    if r.get("holdout_b"):
+        out.append("holdout_b")
     return out
 
 

@@ -125,6 +125,10 @@ def main(
     para_acc, para_bad = router_accuracy(para) if para else (float("nan"), [])
     if para:
         router_line += f"; paraphrase: {para_acc:.3f} ({len(para) - len(para_bad)}/{len(para)})"
+    hold = [q for q in gold if q.holdout_b]  # holdout B: written after routed_v2, never used to tune anything
+    hold_acc, hold_bad = router_accuracy(hold) if hold else (float("nan"), [])
+    if hold:
+        router_line += f"; holdout_b: {hold_acc:.3f} ({len(hold) - len(hold_bad)}/{len(hold)})"
 
     client = gen_model = judge_model = courses = None
     if generate_:
@@ -147,7 +151,7 @@ def main(
         for q in gold:
             ranked = [x.course_id for x in r.retrieve(q.question, k=k)]
             row = {"id": q.id, "type": q.type, "has_code": q.has_code, "paraphrase": q.paraphrase,
-                   "ranked": ranked, "gold": q.gold_course_ids}
+                   "holdout_b": q.holdout_b, "ranked": ranked, "gold": q.gold_course_ids}
             if do_gen:
                 ids = r.context(q.question, gen_k) if hasattr(r, "context") else ranked[:gen_k]
                 top = [courses[cid] for cid in ids if cid in courses]
@@ -187,7 +191,8 @@ def main(
     reports.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     payload = {"note": note, "router": {"accuracy": acc, "misrouted": misrouted,
-                                        "paraphrase": {"accuracy": para_acc, "misrouted": para_bad}},
+                                        "paraphrase": {"accuracy": para_acc, "misrouted": para_bad},
+                                        "holdout_b": {"accuracy": hold_acc, "misrouted": hold_bad}},
                "results": results,
                "generation": {"generator": gen_model, "judge": judge_model, "gen_k": gen_k, "fresh": fresh,
                               "gen_params": GEN_PARAMS, "judge_params": JUDGE_PARAMS,

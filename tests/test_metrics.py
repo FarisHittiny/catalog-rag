@@ -62,6 +62,17 @@ def test_aggregate_splits_on_paraphrase_when_present():
     assert "paraphrase" not in plain
 
 
+def test_aggregate_splits_on_holdout_b_when_present():
+    rows = [
+        {"type": "factual", "paraphrase": True, "holdout_b": True, "ranked": ["a"], "gold": ["a"]},
+        {"type": "factual", "paraphrase": True, "holdout_b": False, "ranked": ["x"], "gold": ["a"]},
+    ]
+    agg = aggregate(rows, ks=(1,))
+    assert agg["holdout_b"]["n"] == 1 and agg["holdout_b"]["recall@1"] == 1.0
+    assert agg["paraphrase"]["n"] == 2
+    assert "holdout_b" not in aggregate([{"type": "factual", "ranked": ["a"], "gold": ["a"]}], ks=(1,))
+
+
 # ---- M2 answer metrics -------------------------------------------------------------
 from catalog_rag.eval.metrics import (  # noqa: E402
     abstention_accuracy,

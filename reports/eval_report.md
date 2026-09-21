@@ -132,6 +132,23 @@ What moved and what did not. The has_code and prereq rows of routed_v2 are ident
 
 Judge agreement is not reported for routed_v2 (26/30 labeled answers current): the human labels are bound to routed's generated answers, and dense changes the context, and so the answer, on four of the 30 labeled questions. The 0.900 on routed still holds. Deciding whether routed_v2 replaces routed would need a new held-out set written without looking at these numbers.
 
+## Held-out validation of routed_v2
+
+The post-hoc section above could not say whether routed_v2's paraphrase gain would hold on questions it had never seen, because g101 to g115 were the rows it was designed on. Holdout B is the check. Fifteen new paraphrase rows (g116 to g130) were drafted on 2026-09-18, after routed_v2 was built: 10 code-free factual questions with no vocabulary shared with the gold record, and 5 prereq questions naming the source course by code in phrasings the router does not match. Their gold courses are disjoint from every gold id in g101 to g115. No retriever was run on them before this section's run; the only checks during drafting were `route()` and the verbatim-overlap test. Fourteen were verified against the catalog pages; g128 ("ECEN 215 counts toward what?") was left unverified because of its question format and is excluded. The rows carry `holdout_b: true` and the table reports them as their own split.
+
+Run of 2026-09-21 on 129 questions, routed and routed_v2 only, same generator, judge and settings as the final table. Router accuracy on the 14 holdout B rows: 0.714 (10/14); the four misses are the four prereq rows (g126, g127, g129, g130), so on this batch too every unfamiliar prereq phrasing goes to the wrong retriever.
+
+| retriever | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc |
+|---|---|---|---|---|---|---|---|---|---|---|
+| routed | holdout_b | 14 | 0.000 | 0.268 | 0.429 | 0.162 | 14 | 0.214 | 0.800 | 0.357 |
+| routed_v2 | holdout_b | 14 | 0.500 | 0.911 | 1.000 | 0.701 | 14 | 0.643 | 0.950 | 0.714 |
+| routed | overall (129) | 114 | 0.474 | 0.754 | 0.822 | 0.764 | 129 | 0.698 | 0.914 | 0.829 |
+| routed_v2 | overall (129) | 114 | 0.561 | 0.899 | 0.971 | 0.879 | 129 | 0.791 | 0.932 | 0.907 |
+
+The held-out numbers match the post-hoc ones. On g101 to g115 routed_v2 scored recall@5 0.830 and correctness 0.667; on the 14 rows it had never seen it scores 0.911 and 0.643. routed, unchanged, scores 0.268 and 0.214 here against 0.296 and 0.200 there. The gain is not an artifact of tuning to the first batch. The overall rows are over 129 questions and are not comparable to the 115-question final table above: routed's overall correctness moves from 0.757 to 0.698 and routed_v2's from 0.809 to 0.791 purely because 14 hard rows were added; no question from the 115 changed.
+
+What routed_v2 still gets wrong on holdout B: retrieval misses only g120 (the fault-analysis paraphrase, recall@5), and the judge scores five rows 0: g116, g118, g119, g120 and g130. g130 is a prereq row the router sends to bm25_codes_id, and the answer omits CSCE 325. The other four are all abstentions: on g120 the record was not retrieved, but on g116, g118 and g119 the gold record was in the generator's top-5 context and it still replied that the catalog does not cover the question. So on held-out paraphrases the remaining loss has moved from retrieval to generation: the generator does not recognise "the course on chance and dice-roll odds" as the Random Signals record sitting in front of it. Judge agreement is still not reported for routed_v2 (26/30 labeled answers current), for the reason given in the post-hoc section.
+
 ## Caveats
 
 - Graph prereq recall is by construction: the prereq gold ids were derived from the same graph the retriever queries, so the claim rests on the prerequisite-string parser matching the catalog, which was checked by hand on 25 prereq rows.

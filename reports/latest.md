@@ -1,77 +1,35 @@
-> M3: 115 questions; generation + judge for bm25 (baseline, plain top-5), bm25_codes_id, routed, routed_v2. routed_v2 is post-hoc: designed after the paraphrase results, so its paraphrase row is not held-out
+> M3: 129 questions (115 + 14 holdout B, g128 excluded as unverified); routed vs routed_v2, held-out validation
 
-> router accuracy: 0.957 (110/115); misrouted: g111, g112, g113, g114, g115; paraphrase: 0.667 (10/15)
+> router accuracy: 0.930 (120/129); misrouted: g111, g112, g113, g114, g115, g126, g127, g129, g130; paraphrase: 0.690 (20/29); holdout_b: 0.714 (10/14)
 
 > generator: protected.gpt-5.4-mini {'temperature': 0, 'seed': 0}; judge: protected.Claude Sonnet 4.6 {'seed': 0}; top-5 records per question
 
-> judge agreement (bm25: unlabeled (30/30 labeled, 14/30 answers current), bm25_codes_id: unlabeled (30/30 labeled, 22/30 answers current), routed: 0.900 (30/30), routed_v2: unlabeled (30/30 labeled, 26/30 answers current))
+> judge agreement (routed: 0.900 (30/30), routed_v2: unlabeled (30/30 labeled, 26/30 answers current))
 
 | retriever | corpus | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| bm25 | 148 | overall | 100 | 0.341 | 0.671 | 0.796 | 0.635 | 115 | 0.557 | 0.922 | 0.774 | unlabeled (30/30 labeled, 14/30 answers current) |
-| bm25 | 148 | factual | 50 | 0.500 | 0.640 | 0.740 | 0.556 | 50 | 0.560 | 0.917 | 0.660 | - |
-| bm25 | 148 | has_code | 70 | 0.237 | 0.673 | 0.851 | 0.638 | 84 | 0.524 | 0.925 | 0.798 | - |
-| bm25 | 148 | prereq | 30 | 0.082 | 0.581 | 0.813 | 0.643 | 30 | 0.300 | 0.890 | 0.833 | - |
-| bm25 | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.645 | 0.917 | 0.710 | - |
-| bm25 | 148 | multi_hop | 20 | 0.333 | 0.883 | 0.908 | 0.821 | 20 | 0.600 | 0.984 | 0.800 | - |
-| bm25 | 148 | paraphrase | 15 | 0.007 | 0.304 | 0.326 | 0.158 | 15 | 0.267 | 0.625 | 0.400 | - |
-| bm25 | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 1.000 | - | 1.000 | - |
-| bm25_codes | 148 | overall | 100 | 0.414 | 0.756 | 0.837 | 0.746 | - | - | - | - | - |
-| bm25_codes | 148 | factual | 50 | 0.600 | 0.720 | 0.780 | 0.645 | - | - | - | - | - |
-| bm25_codes | 148 | has_code | 70 | 0.342 | 0.795 | 0.910 | 0.796 | - | - | - | - | - |
-| bm25_codes | 148 | prereq | 30 | 0.125 | 0.715 | 0.885 | 0.817 | - | - | - | - | - |
-| bm25_codes | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | - | - | - | - | - |
-| bm25_codes | 148 | multi_hop | 20 | 0.383 | 0.908 | 0.908 | 0.892 | - | - | - | - | - |
-| bm25_codes | 148 | paraphrase | 15 | 0.030 | 0.304 | 0.326 | 0.233 | - | - | - | - | - |
-| bm25_codes_id | 148 | overall | 100 | 0.467 | 0.801 | 0.865 | 0.720 | 115 | 0.652 | 0.921 | 0.887 | unlabeled (30/30 labeled, 22/30 answers current) |
-| bm25_codes_id | 148 | factual | 50 | 0.780 | 0.800 | 0.800 | 0.790 | 50 | 0.660 | 0.923 | 0.760 | - |
-| bm25_codes_id | 148 | has_code | 70 | 0.417 | 0.859 | 0.950 | 0.760 | 84 | 0.643 | 0.922 | 0.952 | - |
-| bm25_codes_id | 148 | prereq | 30 | 0.000 | 0.688 | 0.883 | 0.489 | 30 | 0.400 | 0.886 | 1.000 | - |
-| bm25_codes_id | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.677 | 0.917 | 0.710 | - |
-| bm25_codes_id | 148 | multi_hop | 20 | 0.383 | 0.975 | 1.000 | 0.892 | 20 | 0.800 | 0.970 | 1.000 | - |
-| bm25_codes_id | 148 | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 | - |
-| bm25_codes_id | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
-| dense | 148 | overall | 100 | 0.299 | 0.567 | 0.698 | 0.571 | - | - | - | - | - |
-| dense | 148 | factual | 50 | 0.420 | 0.740 | 0.840 | 0.548 | - | - | - | - | - |
-| dense | 148 | has_code | 70 | 0.134 | 0.417 | 0.582 | 0.468 | - | - | - | - | - |
-| dense | 148 | prereq | 30 | 0.134 | 0.272 | 0.437 | 0.557 | - | - | - | - | - |
-| dense | 148 | no_code | 30 | 0.683 | 0.917 | 0.967 | 0.813 | - | - | - | - | - |
-| dense | 148 | multi_hop | 20 | 0.242 | 0.575 | 0.733 | 0.650 | - | - | - | - | - |
-| dense | 148 | paraphrase | 15 | 0.467 | 0.711 | 0.904 | 0.601 | - | - | - | - | - |
-| hybrid | 148 | overall | 100 | 0.378 | 0.702 | 0.806 | 0.690 | - | - | - | - | - |
-| hybrid | 148 | factual | 50 | 0.520 | 0.720 | 0.800 | 0.598 | - | - | - | - | - |
-| hybrid | 148 | has_code | 70 | 0.282 | 0.704 | 0.837 | 0.700 | - | - | - | - | - |
-| hybrid | 148 | prereq | 30 | 0.170 | 0.586 | 0.764 | 0.757 | - | - | - | - | - |
-| hybrid | 148 | no_code | 30 | 0.600 | 0.700 | 0.733 | 0.665 | - | - | - | - | - |
-| hybrid | 148 | multi_hop | 20 | 0.333 | 0.833 | 0.883 | 0.818 | - | - | - | - | - |
-| hybrid | 148 | paraphrase | 15 | 0.163 | 0.363 | 0.444 | 0.331 | - | - | - | - | - |
-| graph | 148 | overall | 100 | 0.113 | 0.260 | 0.340 | 0.328 | - | - | - | - | - |
-| graph | 148 | factual | 50 | 0.000 | 0.000 | 0.020 | 0.003 | - | - | - | - | - |
-| graph | 148 | has_code | 70 | 0.161 | 0.371 | 0.485 | 0.468 | - | - | - | - | - |
-| graph | 148 | prereq | 30 | 0.359 | 0.761 | 0.927 | 1.000 | - | - | - | - | - |
-| graph | 148 | no_code | 30 | 0.000 | 0.000 | 0.000 | 0.000 | - | - | - | - | - |
-| graph | 148 | multi_hop | 20 | 0.025 | 0.158 | 0.258 | 0.131 | - | - | - | - | - |
-| graph | 148 | paraphrase | 15 | 0.230 | 0.304 | 0.333 | 0.333 | - | - | - | - | - |
-| routed | 148 | overall | 100 | 0.540 | 0.822 | 0.877 | 0.848 | 115 | 0.757 | 0.920 | 0.887 | 0.900 (30/30) |
-| routed | 148 | factual | 50 | 0.780 | 0.800 | 0.800 | 0.790 | 50 | 0.660 | 0.923 | 0.760 | - |
-| routed | 148 | has_code | 70 | 0.521 | 0.889 | 0.967 | 0.943 | 84 | 0.786 | 0.921 | 0.952 | - |
-| routed | 148 | prereq | 30 | 0.244 | 0.757 | 0.923 | 0.917 | 30 | 0.800 | 0.883 | 1.000 | - |
-| routed | 148 | no_code | 30 | 0.583 | 0.667 | 0.667 | 0.628 | 31 | 0.677 | 0.917 | 0.710 | - |
+| routed | 148 | overall | 114 | 0.474 | 0.754 | 0.822 | 0.764 | 129 | 0.698 | 0.914 | 0.829 | 0.900 (30/30) |
+| routed | 148 | factual | 60 | 0.650 | 0.667 | 0.700 | 0.663 | 60 | 0.550 | 0.900 | 0.650 | - |
+| routed | 148 | has_code | 74 | 0.493 | 0.891 | 0.969 | 0.919 | 88 | 0.784 | 0.926 | 0.955 | - |
+| routed | 148 | prereq | 34 | 0.215 | 0.778 | 0.932 | 0.868 | 34 | 0.794 | 0.897 | 1.000 | - |
+| routed | 148 | no_code | 40 | 0.438 | 0.500 | 0.550 | 0.478 | 41 | 0.512 | 0.875 | 0.561 | - |
 | routed | 148 | multi_hop | 20 | 0.383 | 0.975 | 1.000 | 0.892 | 20 | 0.800 | 0.970 | 1.000 | - |
-| routed | 148 | paraphrase | 15 | 0.000 | 0.296 | 0.326 | 0.167 | 15 | 0.200 | 0.667 | 0.400 | - |
+| routed | 148 | paraphrase | 29 | 0.000 | 0.283 | 0.375 | 0.164 | 29 | 0.207 | 0.727 | 0.379 | - |
+| routed | 148 | holdout_b | 14 | 0.000 | 0.268 | 0.429 | 0.162 | 14 | 0.214 | 0.800 | 0.357 | - |
 | routed | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
-| routed_v2 | 148 | overall | 100 | 0.570 | 0.897 | 0.967 | 0.904 | 115 | 0.809 | 0.930 | 0.930 | unlabeled (30/30 labeled, 26/30 answers current) |
-| routed_v2 | 148 | factual | 50 | 0.820 | 0.960 | 0.980 | 0.878 | 50 | 0.800 | 0.945 | 0.880 | - |
-| routed_v2 | 148 | has_code | 70 | 0.521 | 0.889 | 0.967 | 0.943 | 84 | 0.786 | 0.921 | 0.952 | - |
-| routed_v2 | 148 | prereq | 30 | 0.244 | 0.757 | 0.923 | 0.917 | 30 | 0.800 | 0.883 | 1.000 | - |
-| routed_v2 | 148 | no_code | 30 | 0.683 | 0.917 | 0.967 | 0.813 | 31 | 0.871 | 0.952 | 0.871 | - |
+| routed_v2 | 148 | overall | 114 | 0.561 | 0.899 | 0.971 | 0.879 | 129 | 0.791 | 0.932 | 0.907 | unlabeled (30/30 labeled, 26/30 answers current) |
+| routed_v2 | 148 | factual | 60 | 0.800 | 0.950 | 0.983 | 0.862 | 60 | 0.767 | 0.942 | 0.833 | - |
+| routed_v2 | 148 | has_code | 74 | 0.493 | 0.891 | 0.969 | 0.919 | 88 | 0.784 | 0.926 | 0.955 | - |
+| routed_v2 | 148 | prereq | 34 | 0.215 | 0.778 | 0.932 | 0.868 | 34 | 0.794 | 0.897 | 1.000 | - |
+| routed_v2 | 148 | no_code | 40 | 0.688 | 0.912 | 0.975 | 0.805 | 41 | 0.805 | 0.945 | 0.805 | - |
 | routed_v2 | 148 | multi_hop | 20 | 0.433 | 0.950 | 1.000 | 0.950 | 20 | 0.750 | 0.968 | 0.950 | - |
-| routed_v2 | 148 | paraphrase | 15 | 0.333 | 0.830 | 0.926 | 0.571 | 15 | 0.667 | 0.875 | 0.800 | - |
+| routed_v2 | 148 | paraphrase | 29 | 0.414 | 0.869 | 0.962 | 0.633 | 29 | 0.655 | 0.909 | 0.759 | - |
+| routed_v2 | 148 | holdout_b | 14 | 0.500 | 0.911 | 1.000 | 0.701 | 14 | 0.643 | 0.950 | 0.714 | - |
 | routed_v2 | 148 | not_in_catalog | 0 | - | - | - | - | 15 | 0.933 | - | 0.933 | - |
 
 ```
 token usage (this run; cache hits cost nothing):
-  protected.gpt-5.4-mini: 31 api calls, 429 cache hits, 20804 prompt + 992 completion tokens
-  protected.Claude Sonnet 4.6: 19 api calls, 441 cache hits, 8260 prompt + 1530 completion tokens
-  total: 50 api calls, 870 cache hits, 29064 prompt + 2522 completion tokens
+  protected.gpt-5.4-mini: 24 api calls, 234 cache hits, 16080 prompt + 644 completion tokens
+  protected.Claude Sonnet 4.6: 20 api calls, 238 cache hits, 8565 prompt + 1462 completion tokens
+  total: 44 api calls, 472 cache hits, 24645 prompt + 2106 completion tokens
 ```
