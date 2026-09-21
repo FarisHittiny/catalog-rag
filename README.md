@@ -8,14 +8,15 @@ Eval-driven retrieval-augmented question answering over the ECEN and CSCE course
 
 | retriever | recall@5 | MRR | correctness | judge agreement |
 |---|---|---|---|---|
-| bm25 (baseline) | 0.671 | 0.635 | 0.557 | - |
-| routed | 0.822 | 0.848 | 0.757 | 0.900 |
+| bm25 (baseline) | 0.610 | 0.569 | 0.512 | - |
+| routed | 0.754 | 0.764 | 0.698 | 0.900 (30 labels, before rebind) |
+| routed_v2 | 0.899 | 0.879 | 0.791 | pending (26/30 relabeled) |
 
-Corpus of 148 courses. Retrieval metrics over the 100 answerable questions; correctness over all 115, judged by Claude Sonnet 4.6 against hand-written gold answers, with the generator (gpt-5.4-mini) pinned at temperature 0. Judge agreement is on the 30 human-labeled rows, which were labeled against routed's answers, so it is reported for routed only. bm25 generation hands the generator its plain top-5 with no context construction; routed hands prereq questions the queried course plus every graph result.
+Corpus of 148 courses, 129 questions (114 answerable). Retrieval metrics over the answerable questions; correctness over all 129, judged by Claude Sonnet 4.6 against hand-written gold answers, with the generator (gpt-5.4-mini) pinned at temperature 0. routed_v2 (headline) is routed with one change: a question that names no course code goes to dense retrieval instead of BM25. It was designed post-hoc, after the first 15 paraphrase questions exposed the gap, and then validated on a 14-question held-out set written afterwards and never retrieved before that run: held-out recall@5 0.911 and correctness 0.643 against routed's 0.268 and 0.214. Judge agreement is on 30 human-labeled rows. The labels were taken against routed's answers (0.900); they have been rebound to routed_v2's answers, 26 of which are identical, and the remaining 4 await relabeling. bm25 generation hands the generator its plain top-5 with no context construction; routed and routed_v2 hand prereq questions the queried course plus every graph result.
 
-The one place the system fails is paraphrases: on the 15 questions that share no vocabulary with the record, dense retrieval reaches recall@5 0.711 and every lexical retriever, routed included, stays at or below 0.363, because a student who describes a course without naming it or quoting its title gets nothing from BM25.
+The failure that shaped the last change is paraphrases: on the 29 questions that share no vocabulary with the record, every lexical retriever stays at or below recall@5 0.363 on the first batch, because a student who describes a course without naming it or quoting its title gets nothing from BM25; routing those questions to dense takes the paraphrase split to 0.869 (routed 0.283). The open problem now is generation, not retrieval: on three held-out paraphrases (g116, g118, g119) the gold record is in the generator's context and it still answers that the catalog does not cover the question.
 
-The full report, with all seven retrievers, per-type splits, findings and caveats, is in [reports/eval_report.md](reports/eval_report.md).
+The full report, with all eight retrievers, per-type splits, findings and caveats, is in [reports/eval_report.md](reports/eval_report.md).
 
 ## Reproduce
 

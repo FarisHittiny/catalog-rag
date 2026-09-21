@@ -48,7 +48,7 @@ REGISTRY = {  # name -> zero-arg factory
                                          no_code=DenseRetriever(), name="routed_v2"),
 }
 
-HUMAN_SUBSET_RETRIEVER = "routed"  # the human labels are written against this retriever's answers
+HUMAN_SUBSET_RETRIEVER = "routed_v2"  # the human labels are bound to this retriever's answers (rebound 2026-09-21)
 
 
 def router_accuracy(gold: list[GoldQuestion]) -> tuple[float, list[str]]:
