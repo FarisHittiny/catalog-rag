@@ -38,7 +38,7 @@ In the order they were built. Every retriever indexes the same 148 chunks (one p
 
 ## Final table
 
-Run of 2026-09-21 on the final 129-question set. Retrieval columns are over the 114 answerable questions (n). Generation columns (n_gen, correctness, citation_prec, abstain_acc) are over all 129 and were run for bm25, routed and routed_v2. bm25 generation uses its plain top-5 with no context construction (no queried-course-first, no uncapped graph list); routed and routed_v2 build context for prereq-routed questions as described above. The human labels were rebound to routed_v2's answers before this run (26 of 30 unchanged, 4 nulled), so judge agreement reads as pending for routed_v2 and stale for routed; routed's 0.900 is from the 2026-09-18 run. Generator: gpt-5.4-mini, temperature 0, seed 0, top-5 records per question. Judge: Claude Sonnet 4.6. Judge agreement is against the 30 human labels and is reported only where every labeled answer is current.
+Run of 2026-09-21 on the final 129-question set. Retrieval columns are over the 114 answerable questions (n). Generation columns (n_gen, correctness, citation_prec, abstain_acc) are over all 129 and were run for bm25, routed and routed_v2. bm25 generation uses its plain top-5 with no context construction (no queried-course-first, no uncapped graph list); routed and routed_v2 build context for prereq-routed questions as described above. The human labels were rebound to routed_v2's answers before this run (26 of 30 unchanged, 4 nulled), and the four changed rows were relabeled on 2026-09-23, giving 0.900 (27/30) for routed_v2; routed's cell is stale against the rebound file, and its own 0.900 is from the 2026-09-18 run. Generator: gpt-5.4-mini, temperature 0, seed 0, top-5 records per question. Judge: Claude Sonnet 4.6. Judge agreement is against the 30 human labels and is reported only where every labeled answer is current.
 
 | retriever | split | n | recall@1 | recall@5 | recall@10 | mrr | n_gen | correctness | citation_prec | abstain_acc | judge_agr |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -100,7 +100,7 @@ Run of 2026-09-21 on the final 129-question set. Retrieval columns are over the 
 | routed | no_code | 40 | 0.438 | 0.500 | 0.550 | 0.478 | 41 | 0.512 | 0.875 | 0.561 | - |
 | routed | paraphrase | 29 | 0.000 | 0.283 | 0.375 | 0.164 | 29 | 0.207 | 0.727 | 0.379 | - |
 | routed | holdout_b | 14 | 0.000 | 0.268 | 0.429 | 0.162 | 14 | 0.214 | 0.800 | 0.357 | - |
-| routed_v2 | overall | 114 | 0.561 | 0.899 | 0.971 | 0.879 | 129 | 0.791 | 0.932 | 0.907 | unlabeled (26/30 labeled, 30/30 answers current) |
+| routed_v2 | overall | 114 | 0.561 | 0.899 | 0.971 | 0.879 | 129 | 0.791 | 0.932 | 0.907 | 0.900 (30 labels) |
 | routed_v2 | factual | 60 | 0.800 | 0.950 | 0.983 | 0.862 | 60 | 0.767 | 0.942 | 0.833 | - |
 | routed_v2 | prereq | 34 | 0.215 | 0.778 | 0.932 | 0.868 | 34 | 0.794 | 0.897 | 1.000 | - |
 | routed_v2 | multi_hop | 20 | 0.433 | 0.950 | 1.000 | 0.950 | 20 | 0.750 | 0.968 | 0.950 | - |
