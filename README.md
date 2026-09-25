@@ -18,6 +18,30 @@ The failure that shaped the last change is paraphrases: on the 29 questions that
 
 The full report, with all eight retrievers, per-type splits, findings and caveats, is in [reports/eval_report.md](reports/eval_report.md).
 
+## Demo
+
+`src/catalog_rag/api.py` serves the headline retriever behind two endpoints. `POST /ask` runs routed_v2 on every request and returns the route, which retriever answered, the top-10 courses, and the course ids the generator would see; it only calls the LLM when the body sets `"generate": true`, using the same prompt, model and disk cache as the eval, so the demo answers what the table measures. `GET /health` is the probe.
+
+```bash
+uv sync
+uv run uvicorn catalog_rag.api:app --port 7860
+curl -s localhost:7860/ask -H "content-type: application/json"   -d "{\"question\": \"what do I need before ECEN 350\", \"generate\": false}"
+```
+
+| variable | purpose |
+|---|---|
+| `TAMU_CHAT_API_KEY` (or `LLM_API_KEY`) | key for the OpenAI-compatible endpoint; without it `/ask` still retrieves and `generate=true` returns 503 |
+| `LLM_BASE_URL` | that endpoint |
+| `LLM_MODEL` | generator model, e.g. `protected.gpt-5.4-mini` |
+| `DEMO_ORIGINS` | comma-separated CORS allow-list for the page that calls the API; unset means no cross-origin access |
+| `DEMO_GENERATE_PER_HOUR` | generated answers per client IP per hour (default 20) |
+| `DEMO_DAILY_TOKENS` | uncached generator tokens per UTC day before fresh answers stop (default 200000) |
+| `DEMO_PROXY_HOPS` | reverse proxies in front of the API (default 0). The rate limit keys on the socket peer, or with N>0 on the Nth-from-last `X-Forwarded-For` entry, the one the proxy wrote; the Dockerfile sets 1 for the Space proxy |
+
+Questions are capped at 300 characters. Over the rate limit or the daily budget the API answers 429 with a plain message; cached answers and retrieval-only calls keep working.
+
+The `Dockerfile` targets a Hugging Face Docker Space: python 3.12 slim, uv, port 7860, bge-small weights and the chunk embeddings baked in at build time so the first request is fast. `docker build -t catalog-rag-demo .` then `docker run --rm -p 7860:7860 --env-file .env catalog-rag-demo`. On the Space, set `sdk: docker` and `app_port: 7860` in the Space README front matter and add the variables above as Space secrets.
+
 ## Reproduce
 
 ```bash

@@ -148,3 +148,14 @@ def test_200_error_body_maps_to_llm_error():
 
     ok = NS(choices=[NS(message=NS(content="fine"))])
     assert _content_or_raise(ok) == "fine"
+
+
+def test_is_cached_reflects_the_disk_cache(tmp_path):
+    t = FakeTransport()
+    c = _client(tmp_path, t)
+    msgs = [{"role": "user", "content": "hi"}]
+    assert c.is_cached("m", msgs, {"temperature": 0}) is False
+    c.chat("m", msgs, temperature=0)
+    assert c.is_cached("m", msgs, {"temperature": 0}) is True
+    assert c.is_cached("m", msgs) is False  # params are part of the key
+    assert _client(tmp_path, t, read_cache=False).is_cached("m", msgs, {"temperature": 0}) is False

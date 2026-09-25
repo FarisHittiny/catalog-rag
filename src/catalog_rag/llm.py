@@ -129,6 +129,10 @@ class LLMClient:
     def _cache_path(self, key: str) -> Path:
         return self.cache_dir / f"{key}.json"
 
+    def is_cached(self, model: str, messages: list[dict], params: dict | None = None) -> bool:
+        """True when chat() would answer from disk: read_cache is on and the key's file exists."""
+        return self.read_cache and self._cache_path(self.cache_key(model, messages, params)).exists()
+
     # -- calls -------------------------------------------------------------------------
     def chat(self, model: str, messages: list[dict], **params) -> ChatResult:
         key = self.cache_key(model, messages, params)

@@ -17,6 +17,9 @@ dependencies = [
     "python-dotenv>=1.0",
     "anthropic>=0.30",
     "openai>=1.30",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "torch>=2.2",
 ]
 
 [project.optional-dependencies]
@@ -31,3 +34,13 @@ packages = ["src/catalog_rag"]
 
 [tool.ruff]
 line-length = 100
+
+# Linux (CI, the Docker Space) gets CPU-only torch: the PyPI wheel drags in ~3 GB of CUDA libraries
+# the demo never uses. Windows/macOS keep the default index.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
