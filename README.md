@@ -20,7 +20,7 @@ The full report, with all eight retrievers, per-type splits, findings and caveat
 
 ## Demo
 
-`src/catalog_rag/api.py` serves the headline retriever behind two endpoints. `POST /ask` runs routed_v2 on every request and returns the route, which retriever answered, the top-10 courses, and the course ids the generator would see; it only calls the LLM when the body sets `"generate": true`, using the same prompt, model and disk cache as the eval, so the demo answers what the table measures. `GET /health` is the probe.
+`src/catalog_rag/api.py` serves the headline retriever behind two endpoints. `POST /ask` runs routed_v2 on every request and returns the route, which retriever answered, the top-10 courses, and the course ids the generator would see; it only calls the LLM when the body sets `"generate": true`, using the same prompt, model and disk cache as the eval, so the demo answers what the table measures. An optional `"route_override": "prereq"` bypasses the rule router for that request and sends the question to the prerequisite graph (falling back as usual when the graph has nothing). `GET /health` is the probe.
 
 ```bash
 uv sync

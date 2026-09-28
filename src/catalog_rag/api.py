@@ -212,6 +212,13 @@ def load_state(chunks_path: Path = Path("data/processed/chunks.jsonl"),
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=QUESTION_MAX)
     generate: bool = False
+    route_override: Literal["prereq"] | None = None  # bypass the rule router for this request
+
+
+def _with_route(r: RoutedRetriever, route: str) -> RoutedRetriever:
+    """A view of `r` whose router always answers `route`. Shares the indexed sub-retrievers, so
+    it costs nothing and never mutates the app-wide retriever under concurrent requests."""
+    return RoutedRetriever(r.prereq, r.fallback, route=lambda _q: route, no_code=r.no_code, name=r.name)
 
 
 class Retrieved(BaseModel):
@@ -270,6 +277,8 @@ def create_app(state_factory: Callable[[], DemoState] = load_state) -> FastAPI:
     def ask(req: AskRequest, request: Request) -> AskResponse:  # sync: the LLM call blocks
         s: DemoState = request.app.state.demo
         r, q = s.retriever, req.question
+        if req.route_override:
+            r = _with_route(r, req.route_override)
         hits = r.retrieve(q, k=RETRIEVE_K)
         ctx = r.context(q, GEN_K)
         resp = AskResponse(

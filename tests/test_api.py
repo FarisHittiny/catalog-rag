@@ -118,6 +118,22 @@ def test_prereq_question_uses_graph_and_prepends_queried_course(tmp_path):
     assert body["abstained"] is False and body["cached"] is False
 
 
+def test_route_override_forces_the_prereq_route(tmp_path):
+    q = "tell me about ECEN 248"  # no prereq wording: the rule router sends this to "other"
+    with _client(_state(tmp_path)) as c:
+        plain = c.post("/ask", json={"question": q}).json()
+        forced = c.post("/ask", json={"question": q, "route_override": "prereq"}).json()
+        # the graph knows what ECEN 350 unlocks (nothing here), so a forced route still falls back
+        no_hits = c.post("/ask", json={"question": "what do I need before ECEN 350", "route_override": "prereq"}).json()
+        bad = c.post("/ask", json={"question": q, "route_override": "dense"})
+    assert plain["route"] == "other" and plain["retriever_used"] == "bm25_codes_id"
+    assert forced["route"] == "prereq" and forced["retriever_used"] == "graph"
+    assert [x["course_id"] for x in forced["retrieved"]] == ["ECEN 350", "ECEN 449"]
+    assert forced["context_course_ids"] == ["ECEN 248", "ECEN 350", "ECEN 449"]
+    assert no_hits["route"] == "prereq" and no_hits["retriever_used"] == "bm25_codes_id"
+    assert bad.status_code == 422
+
+
 def test_code_free_question_uses_dense(tmp_path):
     with _client(_state(tmp_path)) as c:
         body = c.post("/ask", json={"question": "the class on scheduling and virtual memory"}).json()
