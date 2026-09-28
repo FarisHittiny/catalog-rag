@@ -9,6 +9,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Spaces run the container as uid 1000; own everything under $HOME so the app can write its caches.
 RUN useradd -m -u 1000 user
+# Legacy (non-BuildKit) builders create a missing WORKDIR as root; pre-create it owned by uid 1000.
+RUN mkdir -p /home/user/app && chown -R user:user /home/user/app
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
