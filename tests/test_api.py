@@ -2,13 +2,16 @@
 transport. No network, no torch, no files outside tmp_path."""
 from __future__ import annotations
 
+import logging
+
+import httpx
 import numpy as np
 from fastapi.testclient import TestClient
 
 from catalog_rag import api
 from catalog_rag.api import DemoState, RateLimiter, TokenBudget, create_app
 from catalog_rag.eval.run import REGISTRY
-from catalog_rag.llm import LLMClient
+from catalog_rag.llm import LLMClient, LLMError
 from catalog_rag.models import Chunk, Course
 from catalog_rag.retrievers import (
     BM25CodesIdRetriever,
@@ -263,3 +266,51 @@ def test_client_key_helper():
     assert api.client_key(req("1.1.1.1, 2.2.2.2, 3.3.3.3"), proxy_hops=2) == "2.2.2.2"
     assert api.client_key(req("1.1.1.1"), proxy_hops=2) == "10.0.0.1"  # too few entries: socket peer
     assert api.client_key(req(None), proxy_hops=1) == "10.0.0.1"
+
+
+# ---- LLM failure logging and the startup probe --------------------------------------------
+
+def test_exception_chain_walks_causes():
+    try:
+        try:
+            raise ValueError("inner")
+        except ValueError as inner:
+            raise LLMError("boom") from inner
+    except LLMError as e:
+        assert api.exception_chain(e) == "LLMError: boom <- ValueError: inner"
+    assert api.exception_chain(RuntimeError("alone")) == "RuntimeError: alone"
+
+
+def test_llm_failure_logs_the_chain_before_502(tmp_path, caplog):
+    class FailingTransport:
+        def __call__(self, model, messages, params):
+            try:
+                raise ConnectionError("refused")
+            except ConnectionError as inner:
+                raise LLMError("boom") from inner
+
+    with _client(_state(tmp_path, transport=FailingTransport())) as c, caplog.at_level(logging.ERROR, "catalog_rag.api"):
+        r = c.post("/ask", json={"question": "what do I need before ECEN 350?", "generate": True})
+    assert r.status_code == 502 and "boom" in r.json()["detail"]
+    assert "LLMError: boom <- ConnectionError: refused" in caplog.text
+
+
+def test_probe_llm_reports_status_or_failure_without_the_key(caplog):
+    class Resp:
+        status_code = 200
+
+    with caplog.at_level(logging.INFO, "catalog_rag.api"):
+        ok = api.probe_llm("https://llm.example/openai/", "sk-secret", get=lambda url, **kw: Resp())
+        calls = []
+
+        def failing_get(url, **kw):
+            calls.append((url, kw))
+            raise httpx.ConnectError("no route")
+
+        bad = api.probe_llm("https://llm.example/openai", "sk-secret", get=failing_get)
+    assert "https://llm.example/openai/models -> 200" in ok
+    assert "ConnectError: no route" in bad
+    assert "sk-secret" not in ok and "sk-secret" not in bad and "sk-secret" not in caplog.text
+    assert calls[0][0] == "https://llm.example/openai/models"
+    assert calls[0][1]["headers"]["Authorization"] == "Bearer sk-secret"
+    assert ok in caplog.text and bad in caplog.text

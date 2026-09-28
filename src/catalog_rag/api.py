@@ -13,6 +13,7 @@ limit and a daily token budget so a public demo has a bounded bill. GET /health 
 """
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import threading
@@ -25,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -35,6 +37,8 @@ from .llm import LLMClient, LLMError, Retryable
 from .models import Chunk, Course
 from .prereq_graph import load_courses
 from .retrievers.routed import RoutedRetriever
+
+log = logging.getLogger("catalog_rag.api")
 
 RETRIEVER_NAME = "routed_v2"
 build_retriever = REGISTRY[RETRIEVER_NAME]  # the demo serves exactly the registry entry the report names
@@ -136,6 +140,33 @@ def client_key(request: Request, proxy_hops: int) -> str:
     return xff[-proxy_hops] if len(xff) >= proxy_hops else peer
 
 
+def exception_chain(e: BaseException) -> str:
+    """'Type: message' for e and every cause behind it, outermost first, joined by ' <- '."""
+    parts = []
+    seen: set[int] = set()
+    cur: BaseException | None = e
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        parts.append(f"{type(cur).__name__}: {cur}")
+        cur = cur.__cause__ or (None if cur.__suppress_context__ else cur.__context__)
+    return " <- ".join(parts)
+
+
+def probe_llm(base_url: str, api_key: str, get: Callable[..., object] = httpx.get) -> str:
+    """One GET on <base_url>/models with the key; logs the status code, or the failure's type and
+    message. Runs in a daemon thread at startup so a slow or dead endpoint never blocks serving.
+    The key is sent as a header and never logged."""
+    url = base_url.rstrip("/") + "/models"
+    try:
+        r = get(url, headers={"Authorization": f"Bearer {api_key}"}, timeout=10)
+        msg = f"LLM probe GET {url} -> {r.status_code}"
+        log.info(msg)
+    except Exception as e:  # noqa: BLE001  any failure is the point of the probe
+        msg = f"LLM probe GET {url} failed: {exception_chain(e)}"
+        log.error(msg)
+    return msg
+
+
 def load_state(chunks_path: Path = Path("data/processed/chunks.jsonl"),
                courses_path: Path = Path("data/processed/courses.jsonl"),
                with_llm: bool = True) -> DemoState:
@@ -156,6 +187,10 @@ def load_state(chunks_path: Path = Path("data/processed/chunks.jsonl"),
         if client is not None and not model:
             print("[api] generation disabled: LLM_MODEL is not set", file=sys.stderr)
             client = None
+        if client is not None:  # from_env already loaded .env, so these are the values it used
+            base_url = os.environ.get("LLM_BASE_URL", "")
+            key = os.environ.get("LLM_API_KEY") or os.environ.get("TAMU_CHAT_API_KEY", "")
+            threading.Thread(target=probe_llm, args=(base_url, key), daemon=True).start()
     return DemoState(
         retriever=retriever, courses=courses, client=client, model=model,
         limiter=RateLimiter(int(os.environ.get("DEMO_GENERATE_PER_HOUR", DEFAULT_GENERATE_PER_HOUR)), 3600),
@@ -205,6 +240,13 @@ def create_app(state_factory: Callable[[], DemoState] = load_state) -> FastAPI:
         yield
 
     app = FastAPI(title="catalog-rag demo", lifespan=lifespan)
+    if not log.handlers and not logging.getLogger().handlers:
+        # uvicorn configures only its own loggers; give ours a stderr handler at INFO without
+        # touching the root logger (a root INFO config would also switch on httpx/HF chatter).
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        log.addHandler(h)
+        log.setLevel(logging.INFO)
     origins = [o.strip() for o in os.environ.get("DEMO_ORIGINS", "").split(",") if o.strip()]
     if origins:
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
@@ -247,6 +289,7 @@ def create_app(state_factory: Callable[[], DemoState] = load_state) -> FastAPI:
         try:
             res = s.client.chat(s.model, msgs, **GEN_PARAMS)
         except (LLMError, Retryable) as e:
+            log.error("LLM call failed (model=%s): %s", s.model, exception_chain(e))
             raise HTTPException(502, f"The LLM endpoint failed: {e}") from e
         if not res.cached:
             s.budget.charge(int(res.usage.get("prompt_tokens", 0)) + int(res.usage.get("completion_tokens", 0)))
