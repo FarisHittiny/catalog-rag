@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -33,7 +34,7 @@ from pydantic import BaseModel, Field
 
 from .eval.run import REGISTRY, load_jsonl
 from .generate import GEN_PARAMS, build_messages, parse_answer
-from .llm import LLMClient, LLMError, Retryable
+from .llm import LLMClient, LLMError, Retryable, env_credentials
 from .models import Chunk, Course
 from .prereq_graph import load_courses
 from .retrievers.routed import RoutedRetriever
@@ -140,6 +141,15 @@ def client_key(request: Request, proxy_hops: int) -> str:
     return xff[-proxy_hops] if len(xff) >= proxy_hops else peer
 
 
+SECRET_RE = re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]+|sk-[A-Za-z0-9]+")  # RFC 6750 token chars: trailing punctuation survives
+
+
+def redact(text: str) -> str:
+    """Mask bearer headers and sk-style keys before a message is logged or returned: SDK errors
+    can quote the request headers. 'Bearer <token>' -> 'Bearer [redacted]', 'sk-…' -> 'sk-[redacted]'."""
+    return SECRET_RE.sub(lambda m: "Bearer [redacted]" if m.group().startswith("Bearer") else "sk-[redacted]", text)
+
+
 def exception_chain(e: BaseException) -> str:
     """'Type: message' for e and every cause behind it, outermost first, joined by ' <- '."""
     parts = []
@@ -162,7 +172,7 @@ def probe_llm(base_url: str, api_key: str, get: Callable[..., object] = httpx.ge
         msg = f"LLM probe GET {url} -> {r.status_code}"
         log.info(msg)
     except Exception as e:  # noqa: BLE001  any failure is the point of the probe
-        msg = f"LLM probe GET {url} failed: {exception_chain(e)}"
+        msg = redact(f"LLM probe GET {url} failed: {exception_chain(e)}")
         log.error(msg)
     return msg
 
@@ -188,9 +198,7 @@ def load_state(chunks_path: Path = Path("data/processed/chunks.jsonl"),
             print("[api] generation disabled: LLM_MODEL is not set", file=sys.stderr)
             client = None
         if client is not None:  # from_env already loaded .env, so these are the values it used
-            base_url = os.environ.get("LLM_BASE_URL", "")
-            key = os.environ.get("LLM_API_KEY") or os.environ.get("TAMU_CHAT_API_KEY", "")
-            threading.Thread(target=probe_llm, args=(base_url, key), daemon=True).start()
+            threading.Thread(target=probe_llm, args=env_credentials(), daemon=True).start()
     return DemoState(
         retriever=retriever, courses=courses, client=client, model=model,
         limiter=RateLimiter(int(os.environ.get("DEMO_GENERATE_PER_HOUR", DEFAULT_GENERATE_PER_HOUR)), 3600),
@@ -289,8 +297,8 @@ def create_app(state_factory: Callable[[], DemoState] = load_state) -> FastAPI:
         try:
             res = s.client.chat(s.model, msgs, **GEN_PARAMS)
         except (LLMError, Retryable) as e:
-            log.error("LLM call failed (model=%s): %s", s.model, exception_chain(e))
-            raise HTTPException(502, f"The LLM endpoint failed: {e}") from e
+            log.error("LLM call failed (model=%s): %s", s.model, redact(exception_chain(e)))
+            raise HTTPException(502, redact(f"The LLM endpoint failed: {e}")) from e
         if not res.cached:
             s.budget.charge(int(res.usage.get("prompt_tokens", 0)) + int(res.usage.get("completion_tokens", 0)))
         g = parse_answer(res.content)

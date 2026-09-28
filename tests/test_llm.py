@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from catalog_rag import llm
 from catalog_rag.llm import LLMClient, LLMError, Retryable, _content_or_raise
 
 
@@ -93,6 +94,19 @@ def test_from_env_requires_base_url_and_key(monkeypatch, tmp_path):
     monkeypatch.setenv("TAMU_CHAT_API_KEY", "k")
     c = LLMClient.from_env(cache_dir=tmp_path / "llm")  # fallback key accepted; no call made
     assert isinstance(c, LLMClient)
+
+
+def test_from_env_strips_whitespace_from_key_and_url(monkeypatch, tmp_path):
+    """A trailing newline or space pasted into .env must not reach the OpenAI client."""
+    monkeypatch.chdir(tmp_path)  # no .env here
+    monkeypatch.setenv("LLM_BASE_URL", " http://x \n")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.setenv("TAMU_CHAT_API_KEY", "\tk \n")
+    seen = []
+    monkeypatch.setattr(llm, "_openai_transport", lambda base_url, api_key: seen.append((base_url, api_key)) or (lambda *a: ("", {})))
+    LLMClient.from_env(cache_dir=tmp_path / "llm")
+    assert seen == [("http://x", "k")]
+    assert llm.env_credentials() == ("http://x", "k")
 
 
 def test_malformed_cache_file_is_refetched(tmp_path):

@@ -46,6 +46,14 @@ def _content_or_raise(resp) -> str:
     return choices[0].message.content or ""
 
 
+def env_credentials() -> tuple[str, str]:
+    """(LLM_BASE_URL, api key) from the environment, whitespace stripped: a trailing newline or
+    space pasted into .env would otherwise reach the client verbatim and fail as an opaque 401."""
+    base_url = os.environ.get("LLM_BASE_URL", "").strip()
+    api_key = (os.environ.get("LLM_API_KEY") or os.environ.get("TAMU_CHAT_API_KEY", "")).strip()
+    return base_url, api_key
+
+
 @dataclass
 class ChatResult:
     content: str
@@ -112,8 +120,7 @@ class LLMClient:
         from dotenv import load_dotenv
 
         load_dotenv(env_file)  # relative to the working directory; the eval runs from the repo root
-        base_url = os.environ.get("LLM_BASE_URL", "")
-        api_key = os.environ.get("LLM_API_KEY") or os.environ.get("TAMU_CHAT_API_KEY", "")
+        base_url, api_key = env_credentials()
         missing = [n for n, v in (("LLM_BASE_URL", base_url), ("LLM_API_KEY (or TAMU_CHAT_API_KEY)", api_key)) if not v]
         if missing:
             raise SystemExit("generation needs these in .env or the environment: " + ", ".join(missing))

@@ -295,6 +295,31 @@ def test_llm_failure_logs_the_chain_before_502(tmp_path, caplog):
     assert "LLMError: boom <- ConnectionError: refused" in caplog.text
 
 
+def test_redact_masks_bearer_and_sk_tokens():
+    assert api.redact("Authorization: Bearer sk-abc123DEF rejected") == "Authorization: Bearer [redacted] rejected"
+    assert api.redact("Bearer   eyJhbGciOi.xx.yy") == "Bearer [redacted]"
+    assert api.redact("key sk-abc123DEF expired, sk-ZZZ too") == "key sk-[redacted] expired, sk-[redacted] too"
+    assert api.redact("ConnectError: no route to host") == "ConnectError: no route to host"
+
+
+def test_logged_llm_failure_never_contains_the_key(tmp_path, caplog):
+    key = "sk-abc123DEF"
+
+    class LeakyTransport:
+        def __call__(self, model, messages, params):
+            try:
+                raise ConnectionError(f"header Authorization: Bearer {key} rejected")
+            except ConnectionError as inner:
+                raise LLMError(f"401 Unauthorized (key {key})") from inner
+
+    with _client(_state(tmp_path, transport=LeakyTransport())) as c, caplog.at_level(logging.ERROR, "catalog_rag.api"):
+        r = c.post("/ask", json={"question": "what do I need before ECEN 350?", "generate": True})
+    assert r.status_code == 502
+    assert key not in caplog.text and key not in r.json()["detail"]
+    assert "Bearer [redacted]" in caplog.text and "sk-[redacted]" in caplog.text
+    assert "LLMError: 401 Unauthorized" in caplog.text  # the useful part survives
+
+
 def test_probe_llm_reports_status_or_failure_without_the_key(caplog):
     class Resp:
         status_code = 200
@@ -305,11 +330,11 @@ def test_probe_llm_reports_status_or_failure_without_the_key(caplog):
 
         def failing_get(url, **kw):
             calls.append((url, kw))
-            raise httpx.ConnectError("no route")
+            raise httpx.ConnectError("no route (sent Authorization: Bearer sk-secret)")
 
         bad = api.probe_llm("https://llm.example/openai", "sk-secret", get=failing_get)
     assert "https://llm.example/openai/models -> 200" in ok
-    assert "ConnectError: no route" in bad
+    assert "ConnectError: no route (sent Authorization: Bearer [redacted])" in bad
     assert "sk-secret" not in ok and "sk-secret" not in bad and "sk-secret" not in caplog.text
     assert calls[0][0] == "https://llm.example/openai/models"
     assert calls[0][1]["headers"]["Authorization"] == "Bearer sk-secret"
